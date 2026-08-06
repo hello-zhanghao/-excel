@@ -18,6 +18,8 @@ import '@xyflow/react/dist/style.css'
 import '@/styles/pipeline.css'
 
 import { nodeTypes } from '@/components/nodes'
+import { NodeConfigProvider, useNodeConfig } from '@/components/nodes/NodeConfigContext'
+import { NodeConfigPanel } from '@/components/nodes/NodeConfigPanel'
 import { executePipeline } from '@/lib/pipelineEngine'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
 import { inferFieldsFromRows } from '@/data/sampleDatasets'
@@ -133,6 +135,7 @@ function PipelineCanvasInner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const { selectNode } = useNodeConfig()
   // 最近一次运行的完整结果（供导出 Excel 使用）
   const lastResultsRef = useRef<Map<string, NodeOutput> | null>(null)
   const [previewData, setPreviewData] = useState<{
@@ -651,6 +654,7 @@ function PipelineCanvasInner() {
             onDragOver={onDragOver}
             onInit={setRfInstance}
             onNodeClick={onNodeClick}
+            onPaneClick={() => selectNode(null)}
             nodeTypes={nodeTypes}
             fitView
             deleteKeyCode={['Backspace', 'Delete']}
@@ -762,6 +766,9 @@ function PipelineCanvasInner() {
         )}
       </div>
 
+      {/* 右侧节点配置面板 */}
+      <NodeConfigPanel />
+
       {/* 模板管理弹窗 */}
       {showTemplateMgr && (
         <TemplateManager
@@ -778,7 +785,9 @@ function PipelineCanvasInner() {
 export function PipelineCanvas() {
   return (
     <ReactFlowProvider>
-      <PipelineCanvasInner />
+      <NodeConfigProvider>
+        <PipelineCanvasInner />
+      </NodeConfigProvider>
     </ReactFlowProvider>
   )
 }

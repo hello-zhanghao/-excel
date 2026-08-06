@@ -924,3 +924,52 @@
     flex-wrap: wrap;
   }
 }
+
+/* ----------------------------------------------------------
+   10. 右侧节点配置面板（固定窗口）
+   ---------------------------------------------------------- */
+
+/* 面板容器：固定宽度，左侧边框，flex 列布局 */
+.node-config-panel {
+  width: 360px;
+  max-width: 88vw;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  animation: node-config-slide-in 0.18s ease;
+}
+
+@keyframes node-config-slide-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* 面板内表单区域的滚动条美化 */
+.node-config-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.node-config-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.node-config-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-light);
+}
+
+/* 面板中表单控件统一留白 */
+.node-config-body .nodrag {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 窄屏：面板占更多宽度 */
+@media (max-width: 768px) {
+  .node-config-panel {
+    width: min(360px, 88vw);
+  }
+}
