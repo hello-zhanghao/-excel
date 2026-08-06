@@ -62,6 +62,47 @@ echo    1. 桌面模式（推荐，Electron 窗口）
 echo    2. 浏览器模式（Web，无需 Electron）
 echo  ==========================================
 set /p MODE=请输入序号后按回车 [默认 1]: 
+rem 清洗输入变量，剥离可能携带的回车符（某些终端/管道场景），避免影响后续判断
+if defined MODE for /f "delims=" %%a in ("%MODE%") do set "MODE=%%a"
+
+rem 检测旧进程是否仍在运行（Vite 占用 5173 端口 / Electron 进程）
+set FOUND_VITE=0
+set FOUND_ELECTRON=0
+%SystemRoot%\System32\netstat.exe -ano | %SystemRoot%\System32\findstr.exe ":5173" | %SystemRoot%\System32\findstr.exe "LISTENING" >nul 2>nul
+if not errorlevel 1 set FOUND_VITE=1
+%SystemRoot%\System32\tasklist.exe | %SystemRoot%\System32\findstr.exe /i "electron.exe" >nul 2>nul
+if not errorlevel 1 set FOUND_ELECTRON=1
+
+set NEED_CHECK=0
+if "%FOUND_VITE%"=="1" set NEED_CHECK=1
+if "%MODE%"=="1" if "%FOUND_ELECTRON%"=="1" set NEED_CHECK=1
+
+if "%NEED_CHECK%"=="1" (
+    echo.
+    echo  ==========================================
+    echo    检测到旧进程仍在运行
+    echo  ==========================================
+    if "%FOUND_VITE%"=="1" echo     - Vite 开发服务器 ^(占用 5173 端口^)
+    if "%FOUND_ELECTRON%"=="1" echo     - Electron 应用进程
+    echo.
+    echo    继续启动可能导致端口冲突或应用异常。
+)
+
+set KILL_OLD=N
+if "%NEED_CHECK%"=="1" set /p KILL_OLD=是否结束旧进程并启动本次？[Y/N，默认 N]: 
+rem 清洗输入变量，剥离可能携带的回车符
+if defined KILL_OLD for /f "delims=" %%a in ("%KILL_OLD%") do set "KILL_OLD=%%a"
+
+if /i "%KILL_OLD%"=="Y" (
+    echo [操作] 正在结束旧进程...
+    for /f "tokens=5" %%p in ('%SystemRoot%\System32\netstat.exe -ano ^| %SystemRoot%\System32\findstr.exe ":5173" ^| %SystemRoot%\System32\findstr.exe "LISTENING"') do (
+        %SystemRoot%\System32\taskkill.exe /PID %%p /F >nul 2>nul
+    )
+    if "%FOUND_ELECTRON%"=="1" (
+        %SystemRoot%\System32\taskkill.exe /IM electron.exe /F >nul 2>nul
+    )
+    echo [OK] 旧进程已结束
+)
 
 if "%MODE%"=="2" (
     echo [启动] 浏览器模式...
