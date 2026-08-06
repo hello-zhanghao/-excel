@@ -221,9 +221,21 @@ export interface PipelineNodeData extends Record<string, unknown> {
 export type PipelineNode = Node<PipelineNodeData, PipelineNodeType>
 
 /**
+ * 单个导出 sheet 的数据（excelExport 节点多输入时，每个上游输出一个 sheet）
+ */
+export interface ExportSheet {
+  /** sheet 名（默认取上游节点标签） */
+  name: string
+  rows: Record<string, any>[]
+  fields: import('@/types').FieldMeta[]
+}
+
+/**
  * 单个节点执行后的输出
  */
 export interface NodeOutput {
   rows: Record<string, any>[]
   fields: import('@/types').FieldMeta[]
+  /** excelExport 节点多输入时，每路输入对应一个 sheet；其余节点不设置 */
+  sheets?: ExportSheet[]
 }

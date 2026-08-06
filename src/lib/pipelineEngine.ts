@@ -71,6 +71,26 @@ function formatNumber(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(2)
 }
 
+/** 节点类型的中文标签（用于导出 sheet 命名兜底） */
+const NODE_TYPE_LABELS: Record<string, string> = {
+  dataSource: '数据源',
+  filter: '筛选',
+  calculate: '计算字段',
+  aggregate: '聚合',
+  bin: '分箱',
+  sort: '排序',
+  selectColumns: '列筛选',
+  join: '关联',
+  union: '合并',
+  output: '输出',
+  excelExport: '导出',
+}
+
+function nodeTypeLabel(type: string | undefined): string {
+  if (!type) return ''
+  return NODE_TYPE_LABELS[type] ?? type
+}
+
 // ---------------------------------------------------------------------------
 // 1. 拓扑排序
 // ---------------------------------------------------------------------------
@@ -659,15 +679,17 @@ function executeUnion(
  * 单输入节点（filter/calculate/aggregate/bin/sort/output）使用 inputData，
  * 多输入节点（join/union）使用 allInputs 数组。
  *
- * @param node       待执行节点
- * @param inputData  上游节点输出的行数据（扁平化后，单输入节点使用）
- * @param allInputs  所有上游输入的数组（join/union 等多输入节点使用）
+ * @param node        待执行节点
+ * @param inputData   上游节点输出的行数据（扁平化后，单输入节点使用）
+ * @param allInputs   所有上游输入的数组（join/union/excelExport 等多输入节点使用）
+ * @param sourceNodes 上游节点列表（与 allInputs 一一对应，excelExport 用于生成 sheet 名）
  * @returns 节点输出 { rows, fields }
  */
 export async function executeNode(
   node: PipelineNode,
   inputData: Record<string, any>[],
   allInputs?: Record<string, any>[][],
+  sourceNodes?: (PipelineNode | undefined)[],
 ): Promise<NodeOutput> {
   const type = node.type
 
@@ -696,12 +718,29 @@ export async function executeNode(
         rows: inputData.map((r) => ({ ...r })),
         fields: inferFieldsSafe(inputData, inputData),
       }
-    case 'excelExport':
-      // 导出节点：透传数据，由上层 UI 触发 Excel 下载
+    case 'excelExport': {
+      // 导出节点：保留各上游输出为独立 sheet，供上层 UI 生成多 sheet Excel
+      const inputs = allInputs && allInputs.length > 0 ? allInputs : [inputData]
+      const srcNodes = sourceNodes && sourceNodes.length > 0 ? sourceNodes : []
+
+      const sheets = inputs.map((rows, i) => {
+        const srcNode = srcNodes[i]
+        const label = (srcNode?.data?.label as string) || nodeTypeLabel(srcNode?.type) || `输入${i + 1}`
+        const fields = inferFieldsSafe(rows, rows)
+        return {
+          name: label,
+          rows: rows.map((r) => ({ ...r })),
+          fields,
+        }
+      })
+
+      // 合并行用于画布预览（sheet 明细仍保留在 sheets 中）
       return {
-        rows: inputData.map((r) => ({ ...r })),
-        fields: inferFieldsSafe(inputData, inputData),
+        rows: sheets.flatMap((s) => s.rows),
+        fields: sheets[0]?.fields ?? inferFieldsSafe(inputData, inputData),
+        sheets,
       }
+    }
     default:
       // 未知节点类型：原样透传
       return {
@@ -731,6 +770,7 @@ export async function executePipeline(
 ): Promise<Map<string, NodeOutput>> {
   const sorted = topologicalSort(nodes, edges)
   const results = new Map<string, NodeOutput>()
+  const nodeMap = new Map<string, PipelineNode>(nodes.map((n) => [n.id, n]))
 
   // 构建入边索引：target -> source[]
   const incoming = new Map<string, string[]>()
@@ -745,9 +785,11 @@ export async function executePipeline(
     const allInputs: Record<string, any>[][] = sources.map(
       (src) => results.get(src)?.rows ?? [],
     )
+    // 上游节点列表（excelExport 用于生成 sheet 名）
+    const sourceNodes: (PipelineNode | undefined)[] = sources.map((src) => nodeMap.get(src))
     // 单输入节点使用扁平化后的数据
     const inputData: Record<string, any>[] = allInputs.flat()
-    const output = await executeNode(node, inputData, allInputs)
+    const output = await executeNode(node, inputData, allInputs, sourceNodes)
     results.set(node.id, output)
   }
 

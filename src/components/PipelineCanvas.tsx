@@ -90,37 +90,77 @@ const NODE_LABELS: Record<PipelineNodeType, string> = {
 
 /**
  * 将节点输出导出为 Excel 文件，返回导出文件名；无数据时返回 null。
+ *
+ * 多输入时（result.sheets 存在）每个 sheet 对应一路上游数据，
+ * 全部写入同一个工作簿。
  */
 function exportNodeToExcel(
   node: Node,
   result: NodeOutput,
   defaults?: { label?: string },
 ): string | null {
-  if (!result || result.rows.length === 0) return null
+  if (!result) return null
 
-  const columns = result.fields.map((f) => f.name)
-  const aoa: any[][] = [columns]
-  for (const row of result.rows) {
-    aoa.push(columns.map((col) => row[col] ?? ''))
-  }
-  const ws = XLSX.utils.aoa_to_sheet(aoa)
-  ws['!cols'] = columns.map((col) => ({ wch: Math.max(col.length * 2, 12) }))
-
-  // 文件名：优先 excelExport 节点配置的 filename，其次节点标签
   const nodeConfig = (node.data?.config as any) ?? {}
   const customName = (nodeConfig.filename as string) || ''
-  const sheetName = (
+  const baseName = (
     customName ||
     defaults?.label ||
     (node.data?.label as string) ||
     'export'
   ).slice(0, 25) || 'export'
 
+  // 收集所有待导出的 sheet（多输入时每路一个，单输入时一个）
+  const sheets: { name: string; rows: Record<string, any>[]; fields: any[] }[] =
+    result.sheets && result.sheets.length > 0
+      ? result.sheets
+      : [{ name: baseName, rows: result.rows, fields: result.fields }]
+
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  const filename = `${sheetName}_${Date.now()}.xlsx`
+  const usedNames = new Set<string>()
+  let exportedCount = 0
+
+  for (const sheet of sheets) {
+    if (!sheet.rows || sheet.rows.length === 0) continue
+
+    // 列：优先用字段元信息，其次从第一行推断
+    const columns: string[] =
+      sheet.fields && sheet.fields.length > 0
+        ? sheet.fields.map((f) => f.name)
+        : Object.keys(sheet.rows[0] ?? {})
+    if (columns.length === 0) continue
+
+    const aoa: any[][] = [columns]
+    for (const row of sheet.rows) {
+      aoa.push(columns.map((col) => row[col] ?? ''))
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = columns.map((col) => ({ wch: Math.max(col.length * 2, 12) }))
+
+    // sheet 名去重 + 过滤 Excel 非法字符（上限 31 字符）
+    let sheetName = sanitizeSheetName(sheet.name || baseName)
+    if (usedNames.has(sheetName)) {
+      let i = 2
+      while (usedNames.has(`${sheetName}_${i}`)) i++
+      sheetName = `${sheetName}_${i}`
+    }
+    usedNames.add(sheetName)
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    exportedCount++
+  }
+
+  if (exportedCount === 0) return null
+
+  const filename = `${baseName}_${Date.now()}.xlsx`
   XLSX.writeFile(wb, filename)
   return filename
+}
+
+/** 过滤 Excel sheet 名中的非法字符并截断到 31 字符 */
+function sanitizeSheetName(name: string): string {
+  const cleaned = name.replace(/[\\/?*[\]:]/g, '_').slice(0, 31)
+  return cleaned || 'Sheet'
 }
 
 let nodeIdCounter = 0
@@ -249,6 +289,10 @@ function PipelineCanvasInner() {
                   rows: result.rows.slice(0, 20),
                   fields: result.fields,
                   rowCount: result.rows.length,
+                  sheets: result.sheets?.map((s) => ({
+                    name: s.name,
+                    rowCount: s.rows.length,
+                  })),
                 },
               },
             }
