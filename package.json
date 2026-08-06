@@ -6,6 +6,7 @@
   "author": "Excel BI Builder",
   "license": "MIT",
   "scripts": {
+    "dev": "vite --open",
     "dev:web": "vite",
     "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && tsc -p electron/tsconfig.json && electron .\"",
     "build:web": "vite build",
