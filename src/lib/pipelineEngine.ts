@@ -148,9 +148,16 @@ export function topologicalSort(
 // 2. 各节点类型的数据处理逻辑
 // ---------------------------------------------------------------------------
 
-/** dataSource：从内置数据集加载 */
+/** dataSource：从内置数据集或上传文件加载 */
 function executeDataSource(node: PipelineNode): NodeOutput {
   const config = node.data.config as DataSourceConfig
+  // 优先使用上传的文件数据（config.rows 为解析后的行数组）
+  if (config.rows && config.rows.length > 0) {
+    const rows = config.rows.map((r) => ({ ...r }))
+    const fields = inferFieldsFromRows(rows)
+    return { rows, fields }
+  }
+  // 回退到内置示例数据集
   const dataset = SAMPLE_DATASETS.find((d) => d.id === config.datasetId)
   if (!dataset) {
     return { rows: [], fields: [] }

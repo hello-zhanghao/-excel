@@ -23,9 +23,12 @@ function resolveNodeFields(node: Node<PipelineNodeData> | undefined): string[] {
     return data.preview.fields.map((f) => f.name)
   }
 
-  // 数据源节点：从数据集推断
+  // 数据源节点：优先从上传文件的行数据推断，其次从数据集推断
   if (node.type === 'dataSource') {
-    const dsConfig = data.config as { datasetId?: string }
+    const dsConfig = data.config as { datasetId?: string; rows?: Record<string, any>[] }
+    if (dsConfig.rows && dsConfig.rows.length > 0) {
+      return inferFieldsFromRows(dsConfig.rows).map((f) => f.name)
+    }
     const dataset = SAMPLE_DATASETS.find((d) => d.id === dsConfig.datasetId)
     if (dataset) {
       return inferFieldsFromRows(dataset.rows).map((f) => f.name)

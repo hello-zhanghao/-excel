@@ -124,10 +124,18 @@ export interface SelectColumnsConfig {
 
 /**
  * 数据源节点配置
+ *
+ * 两种数据来源（二选一）：
+ * - datasetId: 选择内置示例数据集
+ * - fileName + rows: 上传/拖拽的文件内容（rows 为解析后的行数组）
  */
 export interface DataSourceConfig {
   /** SAMPLE_DATASETS 中的数据集 id */
-  datasetId: string
+  datasetId?: string
+  /** 上传文件的文件名（如 sales.xlsx）；存在时表示使用文件数据 */
+  fileName?: string
+  /** 上传文件解析后的行数组（缓存于节点配置，供引擎直接使用） */
+  rows?: Record<string, any>[]
 }
 
 /**

@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
+import * as fs from 'fs'
 import { DataService } from './dataService'
 
 let mainWindow: BrowserWindow | null = null
@@ -54,6 +55,16 @@ ipcMain.handle('data:loadFile', async (_event, filePath: string) => {
   try {
     const { tableName, fields } = await dataService.loadFile(filePath)
     return { success: true, tableName, fields }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+// IPC: 读取本地文件内容为 base64（供前端解析行数据）
+ipcMain.handle('file:readBase64', async (_event, filePath: string) => {
+  try {
+    const buffer = await fs.promises.readFile(filePath)
+    return { success: true, base64: buffer.toString('base64') }
   } catch (err: any) {
     return { success: false, error: err.message }
   }

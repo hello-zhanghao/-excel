@@ -3,10 +3,40 @@ import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, R
 import { getDataSource, getEnv } from '@/lib/dataSourceFactory'
 import { generateSQL, inferChartType, generateG2Spec } from '@/lib/encodingEngine'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
+import * as XLSX from 'xlsx'
 
 interface SelectedField {
   name: string
   kind: FieldKind
+}
+
+/** 已上传文件的数据（供数据流模式的数据源节点复用） */
+export interface UploadedFile {
+  fileName: string
+  rows: Record<string, any>[]
+}
+
+/** 将文件解析为行数组（与 WebDataSource / DataSourceNode 一致的解析行为） */
+export function parseFileToRows(file: File): Promise<Record<string, any>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('文件读取失败'))
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        if (!sheet) {
+          reject(new Error('文件中没有可读取的工作表'))
+          return
+        }
+        resolve(XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, any>[])
+      } catch (err: any) {
+        reject(new Error('文件解析失败: ' + err.message))
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  })
 }
 
 interface AppState {
@@ -23,6 +53,8 @@ interface AppState {
   loaded: boolean
   loading: boolean
   error: string | null
+  /** 最近上传的本地文件（含解析后的行数据），供数据流模式的数据源节点复用 */
+  uploadedFile: UploadedFile | null
 
   // 编码配置
   encoding: EncodingConfig
@@ -65,6 +97,7 @@ export const useStore = create<AppState>((set, get) => ({
   loaded: false,
   loading: false,
   error: null,
+  uploadedFile: null,
   encoding: defaultEncoding,
   chartType: 'auto',
   queryResult: null,
@@ -80,6 +113,14 @@ export const useStore = create<AppState>((set, get) => ({
       const ds = getDataSource()
       await ds.loadFile(file)
       const fields = await ds.getSchema()
+      // 保存文件数据，供数据流模式的数据源节点复用
+      let uploadedFile: UploadedFile | null = null
+      try {
+        const rows = await parseFileToRows(file)
+        uploadedFile = { fileName: file.name, rows }
+      } catch {
+        // 解析失败不影响主流程加载
+      }
       set({
         fields,
         tableName: ds.getTableName(),
@@ -88,6 +129,7 @@ export const useStore = create<AppState>((set, get) => ({
         encoding: {},
         queryResult: null,
         g2Spec: null,
+        uploadedFile,
       })
     } catch (err: any) {
       set({ loading: false, error: err.message })
@@ -106,6 +148,22 @@ export const useStore = create<AppState>((set, get) => ({
       const ds = getDataSource()
       await ds.loadFile(fileResult.filePath)
       const fields = await ds.getSchema()
+      // 读取文件内容并保存，供数据流模式的数据源节点复用
+      let uploadedFile: UploadedFile | null = null
+      try {
+        const readResult = await api.readFileBase64?.(fileResult.filePath)
+        if (readResult?.success && readResult.base64) {
+          const workbook = XLSX.read(readResult.base64, { type: 'base64', cellDates: true })
+          const sheet = workbook.Sheets[workbook.SheetNames[0]]
+          if (sheet) {
+            const rows = XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, any>[]
+            const fileName = String(fileResult.filePath).split(/[\\/]/).pop() ?? 'data'
+            uploadedFile = { fileName, rows }
+          }
+        }
+      } catch {
+        // 读取失败不影响主流程加载
+      }
       set({
         fields,
         tableName: ds.getTableName(),
@@ -114,6 +172,7 @@ export const useStore = create<AppState>((set, get) => ({
         encoding: {},
         queryResult: null,
         g2Spec: null,
+        uploadedFile,
       })
     } catch (err: any) {
       set({ loading: false, error: err.message })
