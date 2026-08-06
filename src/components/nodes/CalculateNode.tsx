@@ -37,6 +37,12 @@ export function CalculateNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        config.newField && config.expression
+          ? `${config.newField} = ${config.expression}`
+          : '未配置表达式'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>新字段名</label>

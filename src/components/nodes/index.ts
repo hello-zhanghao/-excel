@@ -16,6 +16,7 @@ export { CalculateNode } from './CalculateNode'
 export { AggregateNode } from './AggregateNode'
 export { BinNode } from './BinNode'
 export { SortNode } from './SortNode'
+export { SelectColumnsNode } from './SelectColumnsNode'
 export { JoinNode } from './JoinNode'
 export { UnionNode } from './UnionNode'
 export { OutputNode } from './OutputNode'
@@ -27,6 +28,7 @@ import { CalculateNode } from './CalculateNode'
 import { AggregateNode } from './AggregateNode'
 import { BinNode } from './BinNode'
 import { SortNode } from './SortNode'
+import { SelectColumnsNode } from './SelectColumnsNode'
 import { JoinNode } from './JoinNode'
 import { UnionNode } from './UnionNode'
 import { OutputNode } from './OutputNode'
@@ -49,6 +51,7 @@ export const nodeTypes: NodeTypes = {
   aggregate: AggregateNode,
   bin: BinNode,
   sort: SortNode,
+  selectColumns: SelectColumnsNode,
   join: JoinNode,
   union: UnionNode,
   output: OutputNode,

@@ -38,6 +38,12 @@ export function DataSourceNode({ id, data, selected }: NodeProps<PipelineNode>) 
       selected={selected}
       hasInput={false}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        dataset
+          ? `${dataset.name} · ${dataset.rows.length} 行`
+          : '未选择数据集'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>内置数据集</label>

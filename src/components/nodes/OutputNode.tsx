@@ -64,6 +64,8 @@ export function OutputNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={false}
+      nodeId={id}
+      summary={hasPreview ? `${rowCount} 行` : '输出到可视化'}
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>输出名称（可选）</label>

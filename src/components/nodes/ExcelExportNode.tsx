@@ -50,7 +50,8 @@ export function ExcelExportNode({ id, data, selected }: NodeProps<PipelineNode>)
       status={status}
       selected={selected}
       hasInput={true}
-      hasOutput={false}
+              hasOutput={false}
+              nodeId={id}
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>文件名（可选）</label>

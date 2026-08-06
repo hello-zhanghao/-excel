@@ -1,5 +1,5 @@
-import React from 'react'
-import { Handle, Position } from '@xyflow/react'
+import React, { useState } from 'react'
+import { Handle, Position, useReactFlow } from '@xyflow/react'
 
 /**
  * 节点执行状态
@@ -28,17 +28,17 @@ export interface BaseNodeProps {
   /**
    * 多输入 Handle 配置（覆盖 hasInput）。
    * 每项渲染一个带标签的左侧 Handle，用于 join/union 等多输入节点。
-   * id 用作 React Flow Handle 的 id，label 显示在节点左侧。
    */
   inputLabels?: { id: string; label: string }[]
-  /** 节点子内容 */
+  /** 节点子内容（配置表单） */
   children?: React.ReactNode
+  /** 紧凑模式下显示的摘要信息（如行数、数据集名） */
+  summary?: React.ReactNode
+  /** 节点 id，用于在弹窗中提供删除操作 */
+  nodeId?: string
 }
 
-// ---------------------------------------------------------------------------
-// 状态颜色映射
-// ---------------------------------------------------------------------------
-
+/** 状态颜色映射 */
 const STATUS_COLORS: Record<NodeStatus, string> = {
   idle: '#9ca3af',
   running: '#3b82f6',
@@ -46,17 +46,12 @@ const STATUS_COLORS: Record<NodeStatus, string> = {
   error: '#ef4444',
 }
 
-// ---------------------------------------------------------------------------
-// 注入 running 脉动动画的 keyframes（仅注入一次）
-// pipeline CSS 尚未引入时也能保证“执行中”状态的视觉反馈
-// ---------------------------------------------------------------------------
-
+/** 注入 running 脉动动画 keyframes */
 const PULSE_STYLE_ID = 'pipeline-node-pulse-keyframes'
 
 function injectPulseKeyframes() {
   if (typeof document === 'undefined') return
   if (document.getElementById(PULSE_STYLE_ID)) return
-
   const style = document.createElement('style')
   style.id = PULSE_STYLE_ID
   style.textContent = `
@@ -72,7 +67,7 @@ function injectPulseKeyframes() {
 injectPulseKeyframes()
 
 // ---------------------------------------------------------------------------
-// 各节点共用的内联控件样式 —— 保证可点击区域足够大
+// 各节点共用的内联控件样式
 // ---------------------------------------------------------------------------
 
 /** 通用文本输入框样式 */
@@ -107,7 +102,7 @@ export const nodeButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
 }
 
-/** 小尺寸图标按钮（如删除一行） */
+/** 小尺寸图标按钮 */
 export const nodeIconButtonStyle: React.CSSProperties = {
   ...nodeButtonStyle,
   width: 30,
@@ -126,10 +121,7 @@ export const nodeLabelStyle: React.CSSProperties = {
   fontWeight: 500,
 }
 
-// ---------------------------------------------------------------------------
-// Handle 公共样式
-// ---------------------------------------------------------------------------
-
+/** Handle 公共样式 */
 const handleStyle: React.CSSProperties = {
   width: 11,
   height: 11,
@@ -137,10 +129,13 @@ const handleStyle: React.CSSProperties = {
   background: '#6366f1',
 }
 
-// ---------------------------------------------------------------------------
-// 通用节点外壳
-// ---------------------------------------------------------------------------
-
+/**
+ * 通用节点外壳（紧凑 + 弹窗）
+ *
+ * 默认以「紧凑卡片」形式渲染：只显示标题栏 + 摘要信息。
+ * 点击节点时弹出配置面板（Modal），显示完整的 children 表单。
+ * 这样画布上的节点保持小巧，细节在需要时展开。
+ */
 export function BaseNode({
   icon,
   title,
@@ -151,127 +146,273 @@ export function BaseNode({
   hasOutput = false,
   inputLabels,
   children,
+  summary,
+  nodeId,
 }: BaseNodeProps) {
+  const [showModal, setShowModal] = useState(false)
+  const { deleteElements } = useReactFlow()
   const statusColor = STATUS_COLORS[status]
   const isRunning = status === 'running'
   const hasMultiInput = inputLabels && inputLabels.length > 0
 
+  /** 删除当前节点（连同接入/接出的连线） */
+  const handleDelete = () => {
+    if (!nodeId) return
+    deleteElements({ nodes: [{ id: nodeId }] })
+    setShowModal(false)
+  }
+
   return (
-    <div
-      className="pipeline-node"
-      style={{
-        width: 220,
-        background: '#ffffff',
-        borderRadius: 10,
-        border: `2px solid ${selected ? color : '#e5e7eb'}`,
-        boxShadow: selected
-          ? `0 0 0 3px ${hexWithAlpha(color, 0.2)}, 0 4px 12px rgba(0,0,0,0.12)`
-          : '0 2px 8px rgba(0,0,0,0.08)',
-        overflow: 'visible',
-        boxSizing: 'border-box',
-      }}
-    >
-      {/* 单输入 Handle */}
-      {hasInput && !hasMultiInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          style={{ ...handleStyle, background: color }}
-        />
-      )}
-
-      {/* 多输入 Handle：左表 / 右表 */}
-      {hasMultiInput && inputLabels.map((item, idx) => {
-        const topPercent = (100 / (inputLabels.length + 1)) * (idx + 1)
-        return (
-          <div key={item.id}>
-            <Handle
-              type="target"
-              position={Position.Left}
-              id={item.id}
-              style={{
-                ...handleStyle,
-                background: color,
-                top: `${topPercent}%`,
-              }}
-            />
-            <span
-              style={{
-                position: 'absolute',
-                left: -28,
-                top: `calc(${topPercent}% - 7px)`,
-                fontSize: 9,
-                color: '#9ca3af',
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none',
-              }}
-            >
-              {item.label}
-            </span>
-          </div>
-        )
-      })}
-
-      {/* 标题栏：图标 + 标题 + 状态指示器 */}
+    <>
       <div
-        className="pipeline-node-header"
+        className="pipeline-node"
+        onClick={(e) => {
+          e.stopPropagation()
+          setShowModal(true)
+        }}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 10px',
-          background: color,
-          color: '#ffffff',
-          borderRadius: '10px 10px 0 0',
+          width: 150,
+          background: '#ffffff',
+          borderRadius: 10,
+          border: `2px solid ${selected ? color : '#e5e7eb'}`,
+          boxShadow: selected
+            ? `0 0 0 3px ${hexWithAlpha(color, 0.2)}, 0 4px 12px rgba(0,0,0,0.12)`
+            : '0 2px 8px rgba(0,0,0,0.08)',
+          overflow: 'visible',
+          boxSizing: 'border-box',
+          cursor: 'pointer',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
       >
-        <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
-        <span
+        {/* 单输入 Handle */}
+        {hasInput && !hasMultiInput && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            style={{ ...handleStyle, background: color }}
+          />
+        )}
+
+        {/* 多输入 Handle */}
+        {hasMultiInput && inputLabels.map((item, idx) => {
+          const topPercent = (100 / (inputLabels.length + 1)) * (idx + 1)
+          return (
+            <div key={item.id}>
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={item.id}
+                style={{ ...handleStyle, background: color, top: `${topPercent}%` }}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  left: -28,
+                  top: `calc(${topPercent}% - 7px)`,
+                  fontSize: 9,
+                  color: '#9ca3af',
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none',
+                }}
+              >
+                {item.label}
+              </span>
+            </div>
+          )
+        })}
+
+        {/* 标题栏：图标 + 标题 + 状态 */}
+        <div
+          className="pipeline-node-header"
           style={{
-            flex: 1,
-            fontSize: 13,
-            fontWeight: 600,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 10px',
+            background: color,
+            color: '#ffffff',
+            borderRadius: '10px 10px 0 0',
           }}
         >
-          {title}
-        </span>
-        <span
-          title={status}
+          <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+          <span
+            style={{
+              flex: 1,
+              fontSize: 12,
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {title}
+          </span>
+          <span
+            title={status}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: statusColor,
+              boxShadow: isRunning ? `0 0 4px 1px ${statusColor}` : 'none',
+              animation: isRunning ? 'pipeline-pulse 1.2s infinite' : 'none',
+              flexShrink: 0,
+            }}
+          />
+        </div>
+
+        {/* 紧凑摘要区 */}
+        <div
+          className="pipeline-node-body"
           style={{
-            width: 9,
-            height: 9,
-            borderRadius: '50%',
-            background: statusColor,
-            boxShadow: isRunning ? `0 0 4px 1px ${statusColor}` : 'none',
-            animation: isRunning ? 'pipeline-pulse 1.2s infinite' : 'none',
-            flexShrink: 0,
+            padding: '6px 10px 8px',
+            minHeight: 18,
+            fontSize: 10.5,
+            color: '#6b7280',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            overflow: 'hidden',
           }}
-        />
+        >
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '100%',
+            }}
+          >
+            {summary ?? '点击查看配置 ⚙'}
+          </span>
+        </div>
+
+        {hasOutput && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            style={{ ...handleStyle, background: color }}
+          />
+        )}
       </div>
 
-      {/* 子内容区域 */}
-      <div className="pipeline-node-body" style={{ padding: 10 }}>
-        {children}
-      </div>
+      {/* 配置弹窗 */}
+      {showModal && (
+        <div
+          className="node-modal-overlay"
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowModal(false)
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            className="nodrag node-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 340,
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflow: 'auto',
+              background: '#ffffff',
+              borderRadius: 12,
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+              border: '1px solid #e5e7eb',
+            }}
+          >
+            {/* 弹窗标题栏 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 14px',
+                background: color,
+                color: '#ffffff',
+                borderRadius: '12px 12px 0 0',
+                position: 'sticky',
+                top: 0,
+                zIndex: 1,
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{icon}</span>
+              <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{title}</span>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                style={{
+                  border: 'none',
+                  background: 'rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  borderRadius: 6,
+                  width: 24,
+                  height: 24,
+                  fontSize: 14,
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                }}
+              >
+                ✕
+              </button>
+            </div>
 
-      {hasOutput && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          style={{ ...handleStyle, background: color }}
-        />
+            {/* 弹窗内容：完整配置表单 */}
+            <div style={{ padding: 12 }}>{children}</div>
+
+            {/* 弹窗底部操作：删除节点 */}
+            {nodeId && (
+              <div
+                className="nodrag"
+                style={{
+                  padding: '10px 12px',
+                  borderTop: '1px solid #eee',
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  style={{
+                    border: '1px solid #ef4444',
+                    background: '#ffffff',
+                    color: '#ef4444',
+                    borderRadius: 6,
+                    padding: '5px 14px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#ef4444'
+                    e.currentTarget.style.color = '#ffffff'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ffffff'
+                    e.currentTarget.style.color = '#ef4444'
+                  }}
+                >
+                  🗑 删除此节点
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
-/**
- * 将 #rrggbb 颜色叠加指定透明度，返回 rgba() 字符串。
- * 输入非法时回退到灰色。
- */
+/** 将 #rrggbb 颜色叠加指定透明度，返回 rgba() */
 function hexWithAlpha(hex: string, alpha: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
   if (!m) return `rgba(107, 114, 128, ${alpha})`

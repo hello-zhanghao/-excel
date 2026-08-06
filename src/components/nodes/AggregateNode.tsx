@@ -113,6 +113,12 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        groupBy.length > 0 || measures.length > 0
+          ? `按 ${groupBy.join('、') || '全部'} 分组 · ${measures.length} 度`
+          : '未配置聚合'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {/* 分组字段：标签 + 下拉选择 */}

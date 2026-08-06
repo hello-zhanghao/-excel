@@ -48,6 +48,8 @@ export function UnionNode({ id, data, selected }: NodeProps<PipelineNode>) {
         { id: 'input1', label: '表1' },
         { id: 'input2', label: '表2' },
       ]}
+      nodeId={id}
+      summary={config.distinct ? '去重合并' : '纵向合并多表'}
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>去重模式</label>

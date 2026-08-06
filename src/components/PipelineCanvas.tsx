@@ -34,6 +34,7 @@ const PALETTE_ITEMS: { type: PipelineNodeType; label: string; icon: string }[] =
   { type: 'aggregate', label: '聚合', icon: '📊' },
   { type: 'bin', label: '分箱', icon: '📦' },
   { type: 'sort', label: '排序', icon: '↕️' },
+  { type: 'selectColumns', label: '列筛选', icon: '☰' },
   { type: 'join', label: '关联', icon: '🔗' },
   { type: 'union', label: '合并', icon: '📋' },
   { type: 'output', label: '输出', icon: '🎯' },
@@ -55,6 +56,8 @@ function getDefaultConfig(type: PipelineNodeType): Record<string, any> {
       return { field: '', bins: 4, method: 'equalWidth' }
     case 'sort':
       return { field: '', order: 'desc' }
+    case 'selectColumns':
+      return { fields: [] }
     case 'join':
       return { leftKey: '', rightKey: '', joinType: 'inner' }
     case 'union':
@@ -76,6 +79,7 @@ const NODE_LABELS: Record<PipelineNodeType, string> = {
   aggregate: '聚合',
   bin: '分箱',
   sort: '排序',
+  selectColumns: '列筛选',
   join: '关联',
   union: '合并',
   output: '输出',
@@ -649,6 +653,7 @@ function PipelineCanvasInner() {
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
             fitView
+            deleteKeyCode={['Backspace', 'Delete']}
             defaultEdgeOptions={{
               style: { stroke: '#c0c0d0', strokeWidth: 2 },
               animated: true,

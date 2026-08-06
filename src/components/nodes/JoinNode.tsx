@@ -73,6 +73,12 @@ export function JoinNode({ id, data, selected }: NodeProps<PipelineNode>) {
         { id: 'left', label: '左表' },
         { id: 'right', label: '右表' },
       ]}
+      nodeId={id}
+      summary={
+        config.leftKey && config.rightKey
+          ? `${config.leftKey} = ${config.rightKey} · ${config.joinType ?? 'inner'}`
+          : '未配置关联字段'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>左表关联字段</label>

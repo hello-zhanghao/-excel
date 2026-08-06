@@ -12,6 +12,7 @@ export type PipelineNodeType =
   | 'aggregate'  // 聚合：分组 + 度量聚合
   | 'bin'        // 分箱：数值字段离散化
   | 'sort'       // 排序
+  | 'selectColumns' // 列筛选：只保留选中的列
   | 'join'       // 关联：按字段连接两表（inner/left/right/full）
   | 'union'      // 合并：纵向堆叠多表行
   | 'output'     // 输出：透传结果
@@ -111,6 +112,17 @@ export interface SortConfig {
 }
 
 /**
+ * 列筛选节点配置 —— 只保留选中的列
+ *
+ * 从上游数据字段中勾选要输出的列，未勾选的列会被丢弃。
+ * fields 为空时表示保留全部列（透传）。
+ */
+export interface SelectColumnsConfig {
+  /** 要保留的字段名列表；空数组表示透传全部列 */
+  fields: string[]
+}
+
+/**
  * 数据源节点配置
  */
 export interface DataSourceConfig {
@@ -179,6 +191,7 @@ export type NodeConfig =
   | AggregateConfig
   | BinConfig
   | SortConfig
+  | SelectColumnsConfig
   | JoinConfig
   | UnionConfig
   | OutputConfig

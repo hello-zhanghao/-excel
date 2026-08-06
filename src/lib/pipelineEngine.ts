@@ -25,6 +25,7 @@ import type {
   AggregateConfig,
   BinConfig,
   SortConfig,
+  SelectColumnsConfig,
   JoinConfig,
   UnionConfig,
   FilterCondition,
@@ -441,6 +442,41 @@ function executeSort(
   return { rows, fields }
 }
 
+/** selectColumns：只保留选中的列 */
+function executeSelectColumns(
+  node: PipelineNode,
+  inputData: Record<string, any>[],
+): NodeOutput {
+  const config = node.data.config as SelectColumnsConfig
+  const fields = config.fields || []
+
+  // 未选择任何列时透传全部（保持 schema 不丢失）
+  if (fields.length === 0) {
+    return {
+      rows: inputData.map((r) => ({ ...r })),
+      fields: inferFieldsSafe(inputData, inputData),
+    }
+  }
+
+  // 只保留选中列，忽略上游不存在的字段名
+  const keepSet = new Set(fields)
+  const rows = inputData.map((row) => {
+    const out: Record<string, any> = {}
+    for (const [k, v] of Object.entries(row)) {
+      if (keepSet.has(k)) out[k] = v
+    }
+    return out
+  })
+
+  let resultFields = inferFieldsSafe(rows, inputData)
+  // 当结果为空时，基于上游 schema 过滤出保留字段，避免 schema 丢失
+  if (resultFields.length === 0) {
+    const upstreamFields = inferFieldsSafe(inputData, inputData)
+    resultFields = upstreamFields.filter((f) => keepSet.has(f.name))
+  }
+  return { rows, fields: resultFields }
+}
+
 // ---------------------------------------------------------------------------
 // Join / Union —— 多输入节点
 // ---------------------------------------------------------------------------
@@ -641,6 +677,8 @@ export async function executeNode(
       return executeBin(node, inputData)
     case 'sort':
       return executeSort(node, inputData)
+    case 'selectColumns':
+      return executeSelectColumns(node, inputData)
     case 'join':
       return executeJoin(node, allInputs ?? [inputData])
     case 'union':

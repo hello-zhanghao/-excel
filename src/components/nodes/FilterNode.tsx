@@ -135,6 +135,12 @@ export function FilterNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        conditions.length > 0
+          ? `${conditions.length} 个筛选条件`
+          : '未设置筛选'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {conditions.length === 0 && (

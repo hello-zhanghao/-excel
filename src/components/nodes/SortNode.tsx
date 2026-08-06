@@ -44,6 +44,12 @@ export function SortNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        config.field
+          ? `${config.field} (${config.order === 'asc' ? '升序' : '降序'})`
+          : '未选择字段'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>排序字段</label>

@@ -58,6 +58,12 @@ export function BinNode({ id, data, selected }: NodeProps<PipelineNode>) {
       selected={selected}
       hasInput={true}
       hasOutput={true}
+      nodeId={id}
+      summary={
+        config.field
+          ? `${config.field} → ${config.bins ?? 5} 箱`
+          : '未选择字段'
+      }
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>字段名</label>
