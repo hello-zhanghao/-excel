@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -187,6 +187,78 @@ function PipelineCanvasInner() {
   } | null>(null)
   const [selectedOutputNodeId, setSelectedOutputNodeId] = useState<string | null>(null)
   const [showTemplateMgr, setShowTemplateMgr] = useState(false)
+
+  // ---- 面板布局：可拖拽调整大小 + 可折叠展开 ----
+  const [paletteWidth, setPaletteWidth] = useState(200)
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false)
+  const [previewHeight, setPreviewHeight] = useState(200)
+  const [previewCollapsed, setPreviewCollapsed] = useState(false)
+  const [configWidth, setConfigWidth] = useState(360)
+  const [configCollapsed, setConfigCollapsed] = useState(false)
+
+  type ResizeMode = 'palette' | 'preview' | 'config'
+  const resizeRef = useRef<{
+    mode: ResizeMode
+    startX: number
+    startY: number
+    startW: number
+    startH: number
+  } | null>(null)
+  const [resizing, setResizing] = useState(false)
+
+  const onResizeMove = useCallback((e: MouseEvent) => {
+    const r = resizeRef.current
+    if (!r) return
+    if (r.mode === 'palette') {
+      // 向右拉变宽
+      setPaletteWidth(Math.min(Math.max(r.startW + (e.clientX - r.startX), 140), 420))
+    } else if (r.mode === 'config') {
+      // 向左拉变宽（分隔条位于面板左侧，因此反向）
+      setConfigWidth(Math.min(Math.max(r.startW - (e.clientX - r.startX), 260), 560))
+    } else if (r.mode === 'preview') {
+      // 向上拉变高（分隔条位于预览面板顶部，因此反向）
+      setPreviewHeight(Math.min(Math.max(r.startH - (e.clientY - r.startY), 60), 420))
+    }
+  }, [])
+
+  const onResizeEnd = useCallback(() => {
+    resizeRef.current = null
+    setResizing(false)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    window.removeEventListener('mousemove', onResizeMove)
+    window.removeEventListener('mouseup', onResizeEnd)
+  }, [onResizeMove])
+
+  const onResizeStart = useCallback(
+    (e: React.MouseEvent, mode: ResizeMode) => {
+      e.preventDefault()
+      e.stopPropagation()
+      resizeRef.current = {
+        mode,
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: mode === 'palette' ? paletteWidth : mode === 'config' ? configWidth : 0,
+        startH: mode === 'preview' ? previewHeight : 0,
+      }
+      setResizing(true)
+      document.body.style.cursor = mode === 'preview' ? 'row-resize' : 'col-resize'
+      document.body.style.userSelect = 'none'
+      window.addEventListener('mousemove', onResizeMove)
+      window.addEventListener('mouseup', onResizeEnd)
+    },
+    [onResizeMove, onResizeEnd, paletteWidth, configWidth, previewHeight],
+  )
+
+  // 组件卸载时清理拖拽监听
+  useEffect(() => {
+    return () => {
+      window.removeEventListener('mousemove', onResizeMove)
+      window.removeEventListener('mouseup', onResizeEnd)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [onResizeMove, onResizeEnd])
 
   const { setPipelineData } = useStore() as any
 
@@ -536,14 +608,19 @@ function PipelineCanvasInner() {
   const onNodeClick = useCallback(
     (_: any, node: Node) => {
       const data = node.data as PipelineNodeData
-      const label = (data.label as string) || NODE_LABELS[node.type] || '节点'
+      const label = (data.label as string) || NODE_LABELS[node.type as PipelineNodeType] || '节点'
       if (data.preview) {
+        const preview = data.preview as {
+          rows?: Record<string, any>[]
+          fields?: any[]
+          rowCount?: number
+        }
         setPreviewData({
-          rows: data.preview.rows,
-          fields: data.preview.fields,
+          rows: preview.rows ?? [],
+          fields: preview.fields ?? [],
           nodeId: node.id,
           nodeLabel: label,
-          rowCount: data.preview.rowCount,
+          rowCount: preview.rowCount ?? 0,
         })
         setSelectedOutputNodeId(node.id)
       } else {
@@ -601,67 +678,107 @@ function PipelineCanvasInner() {
 
   return (
     <div className="pipeline-container">
-      {/* 组件面板 */}
-      <div className="pipeline-palette">
-        <div className="palette-title">数据处理组件</div>
-        <div style={{ fontSize: 10, color: 'var(--text-light)', padding: '0 12px 8px' }}>
-          点击添加 · 或拖拽到画布
-        </div>
-        {PALETTE_ITEMS.map((item) => (
+      {/* 组件面板（可折叠、可拖拽调整宽度） */}
+      <div
+        className="pipeline-palette"
+        style={{ width: paletteCollapsed ? 36 : paletteWidth }}
+      >
+        {paletteCollapsed ? (
           <div
-            key={item.type}
-            className="palette-item"
-            draggable
-            onDragStart={(e) => onDragStart(e, item.type)}
-            onClick={() => onPaletteClick(item.type)}
-            title={`点击添加${item.label}到画布`}
+            className="panel-collapsed-v"
+            onClick={() => setPaletteCollapsed(false)}
+            title="展开组件面板"
           >
-            <span className="palette-icon">{item.icon}</span>
-            <span className="palette-label">{item.label}</span>
+            <span className="panel-icon">📦</span>
+            <button className="panel-collapse-btn" type="button">
+              »
+            </button>
           </div>
-        ))}
+        ) : (
+          <>
+            <div
+              className="palette-title"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              数据处理组件
+              <button
+                type="button"
+                className="panel-collapse-btn"
+                onClick={() => setPaletteCollapsed(true)}
+                title="收起面板"
+              >
+                «
+              </button>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-light)', padding: '0 12px 8px' }}>
+              点击添加 · 或拖拽到画布
+            </div>
+            {PALETTE_ITEMS.map((item) => (
+              <div
+                key={item.type}
+                className="palette-item"
+                draggable
+                onDragStart={(e) => onDragStart(e, item.type)}
+                onClick={() => onPaletteClick(item.type)}
+                title={`点击添加${item.label}到画布`}
+              >
+                <span className="palette-icon">{item.icon}</span>
+                <span className="palette-label">{item.label}</span>
+              </div>
+            ))}
 
-        {/* 快速示例按钮 */}
-        <div style={{ padding: '8px 12px', marginTop: 'auto' }}>
-          <button
-            className="quick-demo-btn"
-            onClick={onQuickDemo}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#ffffff',
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-              marginBottom: 6,
-            }}
-          >
-            ⚡ 快速搭建示例
-          </button>
-          <button
-            className="quick-demo-btn"
-            onClick={onJoinDemo}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#ffffff',
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
-            }}
-          >
-            🔗 多表关联示例
-          </button>
-        </div>
+            {/* 快速示例按钮 */}
+            <div style={{ padding: '8px 12px', marginTop: 'auto' }}>
+              <button
+                className="quick-demo-btn"
+                onClick={onQuickDemo}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+                  marginBottom: 6,
+                }}
+              >
+                ⚡ 快速搭建示例
+              </button>
+              <button
+                className="quick-demo-btn"
+                onClick={onJoinDemo}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
+                }}
+              >
+                🔗 多表关联示例
+              </button>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* 左侧面板分隔条（拖拽调整宽度） */}
+      {!paletteCollapsed && (
+        <div
+          className={`panel-divider panel-divider-v${resizing ? ' active' : ''}`}
+          onMouseDown={(e) => onResizeStart(e, 'palette')}
+          title="拖拽调整组件面板宽度"
+        />
+      )}
 
       {/* 画布区域 */}
       <div className="pipeline-main">
@@ -722,41 +839,57 @@ function PipelineCanvasInner() {
           </ReactFlow>
         </div>
 
-        {/* 预览面板 */}
+        {/* 预览面板分隔条（拖拽调整高度） */}
         {previewData && (
-          <div className="pipeline-preview">
+          <div
+            className={`panel-divider panel-divider-h${resizing ? ' active' : ''}`}
+            onMouseDown={(e) => onResizeStart(e, 'preview')}
+            title="拖拽调整预览高度"
+          />
+        )}
+
+        {/* 预览面板（可折叠、可拖拽调整高度） */}
+        {previewData && (
+          <div
+            className="pipeline-preview"
+            style={{ height: previewCollapsed ? 30 : previewHeight }}
+          >
             <div className="preview-header">
               <span>📊 {previewData.nodeLabel || '数据预览'}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
-                {previewData.rowCount != null
-                  ? `共 ${previewData.rowCount} 行 · ${previewData.fields.length} 字段`
-                  : `${previewData.fields.length} 字段`}
-              </span>
+              {!previewCollapsed && (
+                <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
+                  {previewData.rowCount != null
+                    ? `共 ${previewData.rowCount} 行 · ${previewData.fields.length} 字段`
+                    : `${previewData.fields.length} 字段`}
+                </span>
+              )}
+              {!previewCollapsed && (
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={exporting}
+                  title="导出该节点完整数据为 Excel"
+                  style={{
+                    marginLeft: 'auto',
+                    border: '1px solid #2f9e44',
+                    background: '#2f9e44',
+                    color: '#fff',
+                    borderRadius: 6,
+                    padding: '0 10px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    lineHeight: '20px',
+                    opacity: exporting ? 0.6 : 1,
+                    flexShrink: 0,
+                  }}
+                >
+                  {exporting ? '⏳ 导出中...' : '⬇ 导出 Excel'}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleExportExcel}
-                disabled={exporting}
-                title="导出该节点完整数据为 Excel"
-                style={{
-                  marginLeft: 'auto',
-                  border: '1px solid #2f9e44',
-                  background: '#2f9e44',
-                  color: '#fff',
-                  borderRadius: 6,
-                  padding: '0 10px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  lineHeight: '20px',
-                  opacity: exporting ? 0.6 : 1,
-                  flexShrink: 0,
-                }}
-              >
-                {exporting ? '⏳ 导出中...' : '⬇ 导出 Excel'}
-              </button>
-              <button
-                type="button"
-                onClick={onClosePreview}
-                title="关闭预览"
+                onClick={() => setPreviewCollapsed((c) => !c)}
+                title={previewCollapsed ? '展开预览' : '收起预览'}
                 style={{
                   marginLeft: 4,
                   border: '1px solid var(--border)',
@@ -764,54 +897,82 @@ function PipelineCanvasInner() {
                   color: 'var(--text-muted)',
                   borderRadius: 6,
                   padding: '0 8px',
-                  fontSize: 12,
+                  fontSize: 11,
                   cursor: 'pointer',
                   lineHeight: '20px',
                   flexShrink: 0,
                 }}
               >
-                ✕
+                {previewCollapsed ? '▲ 展开' : '▼ 收起'}
               </button>
+              {!previewCollapsed && (
+                <button
+                  type="button"
+                  onClick={onClosePreview}
+                  title="关闭预览"
+                  style={{
+                    marginLeft: 4,
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-muted)',
+                    borderRadius: 6,
+                    padding: '0 8px',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    lineHeight: '20px',
+                    flexShrink: 0,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            {exportMsg && (
+            {!previewCollapsed && exportMsg && (
               <div style={{ padding: '6px 14px', fontSize: 12, color: 'var(--text)', background: 'var(--surface-muted)', borderBottom: '1px solid var(--border)' }}>
                 {exportMsg}
               </div>
             )}
-            {previewData.rows.length === 0 ? (
-              <div style={{ padding: '16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
-                该节点暂无输出数据，请先点击「▶ 运行流水线」执行后再查看结果。
-              </div>
-            ) : (
-              <div style={{ overflow: 'auto', maxHeight: 180 }}>
-                <table className="preview-table">
-                  <thead>
-                    <tr>
-                      {previewData.fields.map((f: any) => (
-                        <th key={f.name}>{f.name}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.rows.slice(0, 100).map((row, i) => (
-                      <tr key={i}>
+            {!previewCollapsed &&
+              (previewData.rows.length === 0 ? (
+                <div style={{ padding: '16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  该节点暂无输出数据，请先点击「▶ 运行流水线」执行后再查看结果。
+                </div>
+              ) : (
+                <div style={{ overflow: 'auto', maxHeight: previewHeight - 38, minHeight: 30 }}>
+                  <table className="preview-table">
+                    <thead>
+                      <tr>
                         {previewData.fields.map((f: any) => (
-                          <td key={f.name}>
-                            {row[f.name] != null ? String(row[f.name]).substring(0, 30) : '—'}
-                          </td>
+                          <th key={f.name}>{f.name}</th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {previewData.rows.slice(0, 100).map((row, i) => (
+                        <tr key={i}>
+                          {previewData.fields.map((f: any) => (
+                            <td key={f.name}>
+                              {row[f.name] != null ? String(row[f.name]).substring(0, 30) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
           </div>
         )}
       </div>
 
-      {/* 右侧节点配置面板 */}
-      <NodeConfigPanel />
+      {/* 右侧节点配置面板（可折叠、可拖拽调整宽度） */}
+      <NodeConfigPanel
+        width={configWidth}
+        collapsed={configCollapsed}
+        onToggleCollapsed={() => setConfigCollapsed((c) => !c)}
+        onResizeStart={(e) => onResizeStart(e, 'config')}
+        resizing={resizing}
+      />
 
       {/* 模板管理弹窗 */}
       {showTemplateMgr && (

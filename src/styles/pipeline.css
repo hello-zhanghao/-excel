@@ -515,13 +515,15 @@
    6. 预览面板
    ---------------------------------------------------------- */
 
-/* 底部预览面板：白色背景，最大高度 200px，可滚动 */
+/* 底部预览面板：白色背景，高度由拖拽/折叠控制，内容区自行滚动 */
 .pipeline-preview {
   background: var(--surface);
   border-top: 1px solid var(--border);
-  max-height: 200px;
-  overflow: auto;
+  overflow: hidden;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 30px;
 }
 
 /* 预览标题栏 */
@@ -560,7 +562,7 @@
 
 .preview-table thead th {
   position: sticky;
-  top: 33px;
+  top: 0;
   padding: 6px 12px;
   text-align: left;
   font-weight: 600;
@@ -939,6 +941,7 @@
   flex-direction: column;
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
   animation: node-config-slide-in 0.18s ease;
 }
 
@@ -972,4 +975,111 @@
   .node-config-panel {
     width: min(360px, 88vw);
   }
+}
+
+/* ----------------------------------------------------------
+   11. 面板拖拽调整大小 / 折叠展开
+   ---------------------------------------------------------- */
+
+/* 分隔条：垂直（调整宽度）/ 水平（调整高度） */
+.panel-divider {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  transition: background 0.15s;
+  background: transparent;
+}
+
+.panel-divider-v {
+  width: 5px;
+  cursor: col-resize;
+}
+
+.panel-divider-h {
+  height: 5px;
+  cursor: row-resize;
+}
+
+.panel-divider:hover,
+.panel-divider.active {
+  background: rgba(109, 92, 255, 0.25);
+}
+
+/* 分隔条中心的小把手 */
+.panel-divider-v::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.panel-divider-h::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.panel-divider:hover::before,
+.panel-divider.active::before {
+  background: var(--brand);
+}
+
+/* 折叠后的垂直窄条（左右面板共用） */
+.panel-collapsed-v {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.panel-collapsed-v:hover {
+  background: var(--surface-muted);
+  color: var(--brand);
+}
+
+.panel-collapsed-v .panel-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 折叠 / 展开按钮 */
+.panel-collapse-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.panel-collapse-btn:hover {
+  background: rgba(109, 92, 255, 0.12);
+  color: var(--brand);
 }
