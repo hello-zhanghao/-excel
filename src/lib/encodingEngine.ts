@@ -27,6 +27,7 @@ const AGG_SQL: Record<Aggregation, string> = {
  * - X=度量, Y=度量       → 散点图 (scatter)
  * - 仅 Color=维度 + Y=度量 → 饼图 (pie)
  * - X=维度, Y=度量, Color=维度 → 分组柱状图
+ * - X=经度, Y=纬度       → 地图 (map)
  */
 export function inferChartType(
   config: EncodingConfig,
@@ -38,6 +39,11 @@ export function inferChartType(
 
   if (!xField && !yField) return 'auto'
   if (!yField) return 'auto'
+
+  // 经纬度对 → 地图散点
+  if (xField && yField && isLonLatPair(xField.name, yField.name)) {
+    return 'map'
+  }
 
   if (!xField && hasColor) return 'pie'
   if (!xField) return 'auto'
@@ -56,6 +62,24 @@ export function inferChartType(
   return 'bar'
 }
 
+/** 常见的经度 / 纬度字段名 */
+const LON_NAMES = ['longitude', 'lng', 'lon', '经度']
+const LAT_NAMES = ['latitude', 'lat', '纬度']
+
+/**
+ * 判断两个字段名是否构成"经度 × 纬度"对
+ * 同时校验字段值域：经度应在 [-180, 180]，纬度应在 [-90, 90]
+ */
+export function isLonLatPair(xName: string, yName: string): boolean {
+  const x = xName.toLowerCase()
+  const y = yName.toLowerCase()
+  const xLon = LON_NAMES.some((n) => x.includes(n))
+  const yLat = LAT_NAMES.some((n) => y.includes(n))
+  const xLat = LAT_NAMES.some((n) => x.includes(n))
+  const yLon = LON_NAMES.some((n) => y.includes(n))
+  return (xLon && yLat) || (xLat && yLon)
+}
+
 /**
  * 生成 SQL 查询
  * 根据编码槽配置，生成带 GROUP BY 和聚合的 SQL
@@ -68,6 +92,21 @@ export function generateSQL(
   const selectParts: string[] = []
   const groupByParts: string[] = []
   const whereParts: string[] = []
+
+  // 经纬度对 → 地图：直接取原始行，保留每个点的完整信息（站名/城市/指标）
+  if (config.x && config.y && isLonLatPair(config.x.field, config.y.field)) {
+    return rawSelectSql(tableName, config)
+  }
+
+  // 散点图：X、Y 都是度量 → 不聚合，直接取原始数据点
+  const xMeta = config.x ? fields.find((f) => f.name === config.x!.field) : undefined
+  const yMeta = config.y ? fields.find((f) => f.name === config.y!.field) : undefined
+  if (
+    config.x && config.y &&
+    xMeta?.kind === FieldKind.Measure && yMeta?.kind === FieldKind.Measure
+  ) {
+    return rawSelectSql(tableName, config)
+  }
 
   // Filter
   if (config.filter && config.filter.values.length > 0) {
@@ -137,6 +176,20 @@ export function generateSQL(
 
 /** SQL 查询结果最大返回行数（十万行级） */
 export const MAX_SQL_RESULT_ROWS = 100000
+
+/**
+ * 生成"取原始行"的 SQL（用于散点图 / 地图等需要逐点数据的图表）
+ * 保留所有字段，仅应用筛选，不聚合
+ */
+function rawSelectSql(tableName: string, config: EncodingConfig): string {
+  let sql = `SELECT * FROM ${tableName}`
+  if (config.filter && config.filter.values.length > 0) {
+    const vals = config.filter.values.map((v) => `'${v.replace(/'/g, "''")}'`).join(', ')
+    sql += ` WHERE ${config.filter.field} IN (${vals})`
+  }
+  sql += ` LIMIT ${MAX_SQL_RESULT_ROWS}`
+  return sql
+}
 
 /**
  * 生成 G2 图表配置

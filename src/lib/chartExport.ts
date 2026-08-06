@@ -9,6 +9,7 @@
 
 import type { ECharts } from 'echarts/core'
 import type { EncodingConfig, FieldMeta, ChartType, QueryResult } from '@/types'
+import { FieldKind } from '@/types'
 import { inferChartType } from './encodingEngine'
 import * as XLSX from 'xlsx'
 
@@ -86,7 +87,10 @@ export async function exportToPPTX(ctx: ExportContext): Promise<void> {
   // 解析字段
   const xField = encoding.x?.field || ''
   const colorField = encoding.color?.field || ''
-  const yAlias = encoding.y && encoding.y.aggregation && encoding.y.aggregation !== 'count'
+  // Y 列别名：度量字段且聚合 → ${agg}_${field}；否则取字段名
+  const yMeta = encoding.y ? fields.find((f) => f.name === encoding.y!.field) : undefined
+  const yIsMeasure = !!yMeta && yMeta.kind === FieldKind.Measure
+  const yAlias = encoding.y && yIsMeasure && encoding.y.aggregation
     ? `${encoding.y.aggregation}_${encoding.y.field}`
     : encoding.y?.field || ''
 
@@ -100,8 +104,12 @@ export async function exportToPPTX(ctx: ExportContext): Promise<void> {
   // 根据图表类型生成不同的原生图表
   if (effectiveType === 'pie') {
     addPieChartToSlide(slide, pptx, rows, xField || colorField, yAlias)
+  } else if (effectiveType === 'map') {
+    // 地图无原生 PPT 图表类型，回退为散点图（经度×纬度），用原始字段名
+    addScatterChartToSlide(slide, pptx, rows, xField, encoding.y?.field || '')
   } else if (effectiveType === 'scatter') {
-    addScatterChartToSlide(slide, pptx, rows, xField, yAlias)
+    // 散点图取原始数据点，用原始字段名
+    addScatterChartToSlide(slide, pptx, rows, encoding.x?.field || '', encoding.y?.field || '')
   } else {
     // bar / line / area
     if (colorField) {
@@ -292,7 +300,7 @@ function buildChartTitle(encoding: EncodingConfig, chartType: ChartType): string
   const parts: string[] = []
   const typeNames: Record<ChartType, string> = {
     bar: '柱状图', line: '折线图', scatter: '散点图',
-    pie: '饼图', area: '面积图', auto: '图表',
+    pie: '饼图', area: '面积图', map: '地图', auto: '图表',
   }
   if (encoding.y) {
     const agg = encoding.y.aggregation
@@ -312,7 +320,7 @@ function buildChartInfoSheet(
 ): string[][] {
   const typeNames: Record<ChartType, string> = {
     bar: '柱状图', line: '折线图', scatter: '散点图',
-    pie: '饼图', area: '面积图', auto: '柱状图',
+    pie: '饼图', area: '面积图', map: '地图', auto: '柱状图',
   }
   return [
     ['图表类型', typeNames[chartType]],

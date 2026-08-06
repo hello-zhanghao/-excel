@@ -8,6 +8,7 @@ import {
   nodeIconButtonStyle,
 } from './BaseNode'
 import type { NodeStatus } from './BaseNode'
+import { useUpstreamFields } from './useUpstreamFields'
 import type {
   PipelineNode,
   FilterConfig,
@@ -87,6 +88,9 @@ export function FilterNode({ id, data, selected }: NodeProps<PipelineNode>) {
   const status = (data.status as NodeStatus | undefined) ?? 'idle'
   const conditions: FilterCondition[] = config.conditions ?? []
 
+  // 上游传入的可用字段（去重有序）
+  const upstreamFields = useUpstreamFields(id)
+
   /** 整体写回 conditions */
   const updateConditions = (next: FilterCondition[]) => {
     updateNodeData(id, { config: { ...config, conditions: next } })
@@ -161,14 +165,30 @@ export function FilterNode({ id, data, selected }: NodeProps<PipelineNode>) {
             }}
           >
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <input
-                type="text"
-                value={cond.field}
-                placeholder="字段名"
-                onChange={(e) => handleFieldChange(i, e.target.value)}
-                style={{ ...nodeInputStyle, flex: 1 }}
-                className="nodrag"
-              />
+              {upstreamFields.length > 0 ? (
+                <select
+                  value={cond.field}
+                  onChange={(e) => handleFieldChange(i, e.target.value)}
+                  style={{ ...nodeSelectStyle, flex: 1, minWidth: 0 }}
+                  className="nodrag"
+                >
+                  <option value="">选择字段</option>
+                  {upstreamFields.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={cond.field}
+                  placeholder="字段名"
+                  onChange={(e) => handleFieldChange(i, e.target.value)}
+                  style={{ ...nodeInputStyle, flex: 1 }}
+                  className="nodrag"
+                />
+              )}
               <button
                 type="button"
                 title="删除条件"

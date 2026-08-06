@@ -2,6 +2,7 @@ import type { NodeProps } from '@xyflow/react'
 import { useReactFlow } from '@xyflow/react'
 import { BaseNode, nodeInputStyle, nodeSelectStyle, nodeLabelStyle } from './BaseNode'
 import type { NodeStatus } from './BaseNode'
+import { useUpstreamFields } from './useUpstreamFields'
 import type { PipelineNode, BinConfig, BinMethod } from '@/types/pipeline'
 
 /** 分箱节点主题色：青色 */
@@ -32,7 +33,14 @@ export function BinNode({ id, data, selected }: NodeProps<PipelineNode>) {
   }
   const status = (data.status as NodeStatus | undefined) ?? 'idle'
 
+  // 上游传入的可用字段（去重有序）
+  const upstreamFields = useUpstreamFields(id)
+
   const handleFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateNodeData(id, { config: { ...config, field: e.target.value } })
+  }
+
+  const handleFieldSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     updateNodeData(id, { config: { ...config, field: e.target.value } })
   }
 
@@ -67,14 +75,30 @@ export function BinNode({ id, data, selected }: NodeProps<PipelineNode>) {
     >
       <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <label style={nodeLabelStyle}>字段名</label>
-        <input
-          type="text"
-          value={config.field ?? ''}
-          placeholder="如 sales"
-          onChange={handleFieldChange}
-          style={nodeInputStyle}
-          className="nodrag"
-        />
+        {upstreamFields.length > 0 ? (
+          <select
+            value={config.field ?? ''}
+            onChange={handleFieldSelect}
+            style={nodeSelectStyle}
+            className="nodrag"
+          >
+            <option value="">选择字段</option>
+            {upstreamFields.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={config.field ?? ''}
+            placeholder="如 sales"
+            onChange={handleFieldChange}
+            style={nodeInputStyle}
+            className="nodrag"
+          />
+        )}
 
         <label style={{ ...nodeLabelStyle, marginTop: 2 }}>分箱数</label>
         <input

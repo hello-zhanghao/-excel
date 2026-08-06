@@ -1,5 +1,5 @@
 import { useStore } from '@/store/useStore'
-import { FieldKind, type SlotName, type Aggregation } from '@/types'
+import { FieldKind, type SlotName, type Aggregation, type EncodingConfig, type FieldMeta, type EncodingItem } from '@/types'
 
 const SLOT_LABELS: Record<string, string> = {
   x: 'X 轴',
@@ -11,13 +11,31 @@ const SLOT_LABELS: Record<string, string> = {
 
 const SLOT_ORDER: SlotName[] = ['x', 'y', 'color', 'size', 'filter']
 
+interface EncodingBarProps {
+  /** 独立编码配置（仪表盘卡片复用）；缺省时使用全局 store */
+  encoding?: EncodingConfig
+  /** 字段列表；缺省时使用全局 store */
+  fields?: FieldMeta[]
+  /** 槽位变更回调；缺省时写入全局 store */
+  onChange?: (slot: SlotName, item: EncodingItem | null) => void
+  /** 紧凑模式（缩小内边距，用于仪表盘卡片） */
+  compact?: boolean
+}
+
 /**
  * 编码槽栏 —— 类 Tableau 的 Shelves
- * 桌面端：拖拽字段到对应槽位
- * 移动端：先点击字段选中 → 再点击槽位分配
+ * 既可作为全局单图表编码栏，也可作为仪表盘内每张卡片的独立编码栏
  */
-export function EncodingBar() {
-  const { encoding, fields, setSlot, selectedField, selectField, setSidebarOpen } = useStore()
+export function EncodingBar({ encoding: propEncoding, fields: propFields, onChange, compact }: EncodingBarProps = {}) {
+  const store = useStore()
+
+  // 有 props 则用独立配置（卡片），否则用全局 store
+  const encoding = propEncoding ?? store.encoding
+  const fields = propFields ?? store.fields
+  const setSlot = onChange ?? store.setSlot
+  const selectedField = store.selectedField
+  const selectField = store.selectField
+  const setSidebarOpen = store.setSidebarOpen
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -71,7 +89,7 @@ export function EncodingBar() {
   const AGG_OPTIONS: Aggregation[] = ['sum', 'avg', 'count', 'min', 'max', 'count_distinct']
 
   return (
-    <div className="encoding-bar">
+    <div className={`encoding-bar ${compact ? 'compact' : ''}`}>
       {SLOT_ORDER.map((slot) => {
         const item = encoding[slot]
         const isFilled = !!item
@@ -122,3 +140,5 @@ export function EncodingBar() {
     </div>
   )
 }
+
+export default EncodingBar

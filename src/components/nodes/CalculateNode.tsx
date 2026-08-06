@@ -1,7 +1,8 @@
 import type { NodeProps } from '@xyflow/react'
 import { useReactFlow } from '@xyflow/react'
-import { BaseNode, nodeInputStyle, nodeLabelStyle } from './BaseNode'
+import { BaseNode, nodeInputStyle, nodeSelectStyle, nodeLabelStyle } from './BaseNode'
 import type { NodeStatus } from './BaseNode'
+import { useUpstreamFields } from './useUpstreamFields'
 import type { PipelineNode, CalculateConfig } from '@/types/pipeline'
 
 /** 计算字段节点主题色：翡翠绿 */
@@ -20,12 +21,25 @@ export function CalculateNode({ id, data, selected }: NodeProps<PipelineNode>) {
   const config = (data.config as CalculateConfig) ?? { newField: '', expression: '' }
   const status = (data.status as NodeStatus | undefined) ?? 'idle'
 
+  // 上游传入的可用字段（去重有序）
+  const upstreamFields = useUpstreamFields(id)
+
   const handleNewFieldChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateNodeData(id, { config: { ...config, newField: e.target.value } })
   }
 
   const handleExpressionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateNodeData(id, { config: { ...config, expression: e.target.value } })
+  }
+
+  /** 选择字段时，把字段名追加到表达式末尾 */
+  const handleInsertField = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const field = e.target.value
+    if (!field) return
+    const expr = config.expression ?? ''
+    const next = expr ? `${expr} ${field}` : field
+    updateNodeData(id, { config: { ...config, expression: next } })
+    e.target.value = ''
   }
 
   return (
@@ -67,6 +81,24 @@ export function CalculateNode({ id, data, selected }: NodeProps<PipelineNode>) {
         <div style={{ fontSize: 10, color: '#9ca3af', lineHeight: 1.4 }}>
           可使用行内任意字段参与四则运算
         </div>
+        {upstreamFields.length > 0 && (
+          <>
+            <label style={{ ...nodeLabelStyle, marginTop: 2 }}>插入字段到表达式</label>
+            <select
+              value=""
+              onChange={handleInsertField}
+              style={nodeSelectStyle}
+              className="nodrag"
+            >
+              <option value="">选择字段 → 追加到表达式</option>
+              {upstreamFields.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
     </BaseNode>
   )

@@ -189,11 +189,11 @@ function PipelineCanvasInner() {
   const [showTemplateMgr, setShowTemplateMgr] = useState(false)
 
   // ---- 面板布局：可拖拽调整大小 + 可折叠展开 ----
-  const [paletteWidth, setPaletteWidth] = useState(200)
+  const [paletteWidth, setPaletteWidth] = useState(170)
   const [paletteCollapsed, setPaletteCollapsed] = useState(false)
-  const [previewHeight, setPreviewHeight] = useState(200)
+  const [previewHeight, setPreviewHeight] = useState(170)
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
-  const [configWidth, setConfigWidth] = useState(360)
+  const [configWidth, setConfigWidth] = useState(320)
   const [configCollapsed, setConfigCollapsed] = useState(false)
 
   type ResizeMode = 'palette' | 'preview' | 'config'

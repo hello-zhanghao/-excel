@@ -54,7 +54,7 @@ export interface EncodingConfig {
 /**
  * 图表类型
  */
-export type ChartType = 'bar' | 'line' | 'scatter' | 'pie' | 'area' | 'auto'
+export type ChartType = 'bar' | 'line' | 'scatter' | 'pie' | 'area' | 'map' | 'auto'
 
 /**
  * 查询结果行
@@ -69,6 +69,16 @@ export interface QueryResult {
   rows: QueryRow[]
   /** 查询耗时 ms */
   elapsed?: number
+}
+
+/**
+ * 仪表盘图表卡片 —— 每张卡片独立承载一份编码配置，绘制一张图
+ */
+export interface DashboardChart {
+  id: string
+  title: string
+  encoding: EncodingConfig
+  chartType: ChartType
 }
 
 /**

@@ -6,7 +6,6 @@ import {
   nodeSelectStyle,
   nodeButtonStyle,
   nodeIconButtonStyle,
-  nodeLabelStyle,
 } from './BaseNode'
 import type { NodeStatus } from './BaseNode'
 import { useUpstreamFields } from './useUpstreamFields'
@@ -120,18 +119,32 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
           : '未配置聚合'
       }
     >
-      <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {/* 分组字段：标签 + 下拉选择 */}
-        <label style={nodeLabelStyle}>分组字段</label>
+      <div className="nodrag" style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* 分区一：分组字段 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: 8,
+            marginBottom: 8,
+            borderBottom: '1px solid #f0f0f3',
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>分组字段</span>
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>
+            {groupBy.length > 0 ? `${groupBy.length} 个` : '按全部汇总'}
+          </span>
+        </div>
 
         {upstreamFields.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#9ca3af' }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', paddingBottom: 8 }}>
             {EMPTY_FIELD_HINT}
           </div>
         ) : (
           <>
             {groupBy.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                 {groupBy.map((field) => (
                   <span
                     key={field}
@@ -141,7 +154,7 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      padding: '2px 8px',
+                      padding: '3px 8px',
                       fontSize: 11,
                       background: '#ffe4e6',
                       color: '#be123c',
@@ -158,7 +171,7 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
             <select
               value=""
               onChange={handleAddGroupBy}
-              style={nodeSelectStyle}
+              style={{ ...nodeSelectStyle, marginBottom: 8 }}
               className="nodrag"
             >
               <option value="">
@@ -175,46 +188,80 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
           </>
         )}
 
-        {/* 度量列表 */}
-        <label style={{ ...nodeLabelStyle, marginTop: 2 }}>度量</label>
+        {/* 分区二：度量 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: 8,
+            marginBottom: 8,
+            borderBottom: '1px solid #f0f0f3',
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>度量</span>
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>{measures.length} 个</span>
+        </div>
 
         {measures.length === 0 && (
-          <div style={{ fontSize: 11, color: '#9ca3af' }}>暂无度量，点击下方按钮添加</div>
+          <div style={{ fontSize: 11, color: '#9ca3af', paddingBottom: 8 }}>
+            暂无度量，点击下方按钮添加
+          </div>
         )}
 
         {measures.map((measure, i) => (
           <div
             key={i}
-            style={{ display: 'flex', gap: 4, alignItems: 'center' }}
+            style={{
+              padding: 6,
+              background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              borderRadius: 6,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              marginBottom: 4,
+            }}
           >
-            {upstreamFields.length > 0 ? (
-              <select
-                value={measure.field}
-                onChange={(e) => handleMeasureField(i, e.target.value)}
-                style={{ ...nodeSelectStyle, flex: 1, minWidth: 0 }}
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              {upstreamFields.length > 0 ? (
+                <select
+                  value={measure.field}
+                  onChange={(e) => handleMeasureField(i, e.target.value)}
+                  style={{ ...nodeSelectStyle, flex: 1, minWidth: 0 }}
+                  className="nodrag"
+                >
+                  <option value="">选择字段</option>
+                  {upstreamFields.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={measure.field}
+                  placeholder="字段名"
+                  onChange={(e) => handleMeasureField(i, e.target.value)}
+                  style={{ ...nodeInputStyle, flex: 1 }}
+                  className="nodrag"
+                />
+              )}
+              <button
+                type="button"
+                title="删除度量"
+                onClick={() => handleRemoveMeasure(i)}
+                style={nodeIconButtonStyle}
                 className="nodrag"
               >
-                <option value="">选择字段</option>
-                {upstreamFields.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={measure.field}
-                placeholder={EMPTY_FIELD_HINT}
-                onChange={(e) => handleMeasureField(i, e.target.value)}
-                style={{ ...nodeInputStyle, flex: 1 }}
-                className="nodrag"
-              />
-            )}
+                ×
+              </button>
+            </div>
             <select
               value={measure.aggregation}
               onChange={(e) => handleMeasureAgg(i, e.target.value as Aggregation)}
-              style={{ ...nodeSelectStyle, width: 80, flex: '0 0 auto' }}
+              style={nodeSelectStyle}
               className="nodrag"
             >
               {AGGREGATIONS.map((agg) => (
@@ -223,15 +270,6 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              title="删除度量"
-              onClick={() => handleRemoveMeasure(i)}
-              style={nodeIconButtonStyle}
-              className="nodrag"
-            >
-              ×
-            </button>
           </div>
         ))}
 

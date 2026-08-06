@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
+import { BarChart, LineChart, PieChart, ScatterChart, MapChart } from 'echarts/charts'
 import {
   GridComponent,
   TooltipComponent,
   LegendComponent,
+  GeoComponent,
+  VisualMapComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts } from 'echarts/core'
@@ -12,14 +14,18 @@ import { useStore } from '@/store/useStore'
 import { generateSQL, inferChartType } from '@/lib/encodingEngine'
 import { generateEChartsOption } from '@/lib/echartsGenerator'
 import { copyChartAsImage, exportToPPTX, exportToExcel, type ExportContext } from '@/lib/chartExport'
+import { CHINA_GEOJSON } from '@/data/chinaGeo'
 import type { ChartType } from '@/types'
 
 // 按需注册 ECharts 模块，显著减小包体积
 echarts.use([
-  BarChart, LineChart, PieChart, ScatterChart,
-  GridComponent, TooltipComponent, LegendComponent,
+  BarChart, LineChart, PieChart, ScatterChart, MapChart,
+  GridComponent, TooltipComponent, LegendComponent, GeoComponent, VisualMapComponent,
   CanvasRenderer,
 ])
+
+// 注册中国地图（离线内嵌 GeoJSON）
+echarts.registerMap('china', CHINA_GEOJSON as any)
 
 const CHART_TYPES: { type: ChartType; label: string }[] = [
   { type: 'auto', label: '自动' },
@@ -28,6 +34,7 @@ const CHART_TYPES: { type: ChartType; label: string }[] = [
   { type: 'scatter', label: '散点图' },
   { type: 'pie', label: '饼图' },
   { type: 'area', label: '面积图' },
+  { type: 'map', label: '地图' },
 ]
 
 /**

@@ -173,16 +173,13 @@ export function BaseNode({
   return (
     <div
       className="pipeline-node"
-      onClick={(e) => {
-        e.stopPropagation()
-        selectNode(nodeId)
-      }}
+      onClick={() => selectNode(nodeId)}
       style={{
-        width: 140,
+        width: 118,
         background: '#ffffff',
-        borderRadius: 8,
+        borderRadius: 7,
         border: `1px solid ${selected ? color : '#e4e4ec'}`,
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `2px solid ${color}`,
         boxShadow: selected ? `0 0 0 2px ${hexWithAlpha(color, 0.18)}` : 'none',
         overflow: 'visible',
         boxSizing: 'border-box',
@@ -233,8 +230,8 @@ export function BaseNode({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          padding: '8px 10px 4px',
+          gap: 5,
+          padding: '6px 8px 2px',
           background: 'transparent',
           color: '#1a1a2e',
         }}
@@ -242,7 +239,7 @@ export function BaseNode({
         <span
           style={{
             flex: 1,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 600,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -254,8 +251,8 @@ export function BaseNode({
         <span
           title={status}
           style={{
-            width: 7,
-            height: 7,
+            width: 6,
+            height: 6,
             borderRadius: '50%',
             background: statusColor,
             boxShadow: isRunning ? `0 0 4px 1px ${statusColor}` : 'none',
@@ -269,10 +266,10 @@ export function BaseNode({
       <div
         className="pipeline-node-body"
         style={{
-          padding: '2px 10px 8px',
-          minHeight: 16,
-          fontSize: 10,
-          color: '#9ca3af',
+          padding: '1px 8px 6px',
+          minHeight: 14,
+          fontSize: 9.5,
+          color: '#a0a0b0',
           display: 'flex',
           alignItems: 'center',
           gap: 4,

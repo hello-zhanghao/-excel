@@ -25,7 +25,7 @@ interface NodeConfigPanelProps {
 }
 
 export function NodeConfigPanel({
-  width = 360,
+  width = 320,
   collapsed = false,
   onToggleCollapsed,
   onResizeStart,

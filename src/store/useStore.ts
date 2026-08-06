@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv } from '@/types'
+import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv, DashboardChart } from '@/types'
 import { FieldKind } from '@/types'
 import { getDataSource, getEnv } from '@/lib/dataSourceFactory'
 import { generateSQL, inferChartType, generateG2Spec } from '@/lib/encodingEngine'
@@ -66,6 +66,9 @@ interface AppState {
   queryElapsed: number | null
   g2Spec: Record<string, any> | null
 
+  // 仪表盘：多图表卡片
+  dashboardCharts: DashboardChart[]
+
   // 移动端 UI 状态
   sidebarOpen: boolean
   selectedField: SelectedField | null
@@ -85,6 +88,9 @@ interface AppState {
   toggleSqlPreview: () => void
   setAppMode: (mode: 'visualize' | 'pipeline') => void
   setPipelineData: (data: { rows: Record<string, any>[]; fields: FieldMeta[] }) => void
+  addDashboardChart: () => void
+  updateDashboardChart: (id: string, patch: Partial<DashboardChart>) => void
+  removeDashboardChart: (id: string) => void
 }
 
 const defaultEncoding: EncodingConfig = {}
@@ -104,6 +110,7 @@ export const useStore = create<AppState>((set, get) => ({
   queryResult: null,
   queryElapsed: null,
   g2Spec: null,
+  dashboardCharts: [],
   sidebarOpen: false,
   selectedField: null,
   sqlPreviewOpen: false,
@@ -284,6 +291,32 @@ export const useStore = create<AppState>((set, get) => ({
       })
     }).catch((err: any) => {
       set({ error: err.message })
+    })
+  },
+
+  addDashboardChart: () => {
+    const id = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    const charts = [...get().dashboardCharts]
+    charts.push({
+      id,
+      title: `图表 ${charts.length + 1}`,
+      encoding: {},
+      chartType: 'auto',
+    })
+    set({ dashboardCharts: charts })
+  },
+
+  updateDashboardChart: (id, patch) => {
+    set({
+      dashboardCharts: get().dashboardCharts.map((c) =>
+        c.id === id ? { ...c, ...patch } : c
+      ),
+    })
+  },
+
+  removeDashboardChart: (id) => {
+    set({
+      dashboardCharts: get().dashboardCharts.filter((c) => c.id !== id),
     })
   },
 }))

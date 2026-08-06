@@ -3,6 +3,7 @@ import { useStore } from '@/store/useStore'
 import { FieldPanel } from '@/components/FieldPanel'
 import { EncodingBar } from '@/components/EncodingBar'
 import { ChartCanvas } from '@/components/ChartCanvas'
+import { Dashboard } from '@/components/Dashboard'
 import { PipelineCanvas } from '@/components/PipelineCanvas'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
 
@@ -31,6 +32,7 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showRuntimeInfo, setShowRuntimeInfo] = useState(false)
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null)
+  const [visView, setVisView] = useState<'single' | 'dashboard'>('dashboard')
 
   // 桌面端：获取运行时版本信息
   useEffect(() => {
@@ -212,8 +214,28 @@ export default function App() {
           <div className="app-body">
             <FieldPanel />
             <div className="chart-area">
-              <EncodingBar />
-              <ChartCanvas />
+              <div className="vis-view-switcher">
+                <button
+                  className={`mode-btn ${visView === 'dashboard' ? 'active' : ''}`}
+                  onClick={() => setVisView('dashboard')}
+                >
+                  仪表盘
+                </button>
+                <button
+                  className={`mode-btn ${visView === 'single' ? 'active' : ''}`}
+                  onClick={() => setVisView('single')}
+                >
+                  单图表
+                </button>
+              </div>
+              {visView === 'dashboard' ? (
+                <Dashboard />
+              ) : (
+                <>
+                  <EncodingBar />
+                  <ChartCanvas />
+                </>
+              )}
             </div>
           </div>
         </>

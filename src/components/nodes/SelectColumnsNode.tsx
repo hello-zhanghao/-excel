@@ -1,6 +1,6 @@
 import type { NodeProps } from '@xyflow/react'
 import { useReactFlow } from '@xyflow/react'
-import { BaseNode, nodeButtonStyle, nodeLabelStyle } from './BaseNode'
+import { BaseNode, nodeButtonStyle } from './BaseNode'
 import type { NodeStatus } from './BaseNode'
 import { useUpstreamFields } from './useUpstreamFields'
 import type { PipelineNode, SelectColumnsConfig } from '@/types/pipeline'
@@ -62,28 +62,37 @@ export function SelectColumnsNode({ id, data, selected }: NodeProps<PipelineNode
             : '未连接上游'
       }
     >
-      <div className="nodrag" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="nodrag" style={{ display: 'flex', flexDirection: 'column' }}>
         {upstreamFields.length === 0 ? (
           <div style={{ fontSize: 11, color: '#9ca3af' }}>请先连接上游数据源</div>
         ) : (
           <>
+            {/* 顶部：标题 + 全选操作，对齐统一 */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '4px 2px',
+                paddingBottom: 8,
+                marginBottom: 8,
+                borderBottom: '1px solid #f0f0f3',
               }}
             >
-              <label style={nodeLabelStyle}>保留列（{fields.length}/{upstreamFields.length}）</label>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>
+                保留列
+                <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 500, color: '#9ca3af' }}>
+                  {fields.length} / {upstreamFields.length}
+                </span>
+              </span>
               <label
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4,
+                  gap: 5,
                   fontSize: 11,
                   color: '#6b7280',
                   cursor: 'pointer',
+                  userSelect: 'none',
                 }}
               >
                 <input
@@ -96,16 +105,15 @@ export function SelectColumnsNode({ id, data, selected }: NodeProps<PipelineNode
               </label>
             </div>
 
+            {/* 字段列表：统一卡片式复选框 */}
             <div
               style={{
-                maxHeight: 200,
+                maxHeight: 220,
                 overflow: 'auto',
-                border: '1px solid #e5e7eb',
-                borderRadius: 6,
-                padding: 4,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 2,
+                gap: 4,
+                padding: 2,
               }}
             >
               {upstreamFields.map((field) => {
@@ -116,13 +124,15 @@ export function SelectColumnsNode({ id, data, selected }: NodeProps<PipelineNode
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
-                      padding: '3px 6px',
-                      borderRadius: 4,
+                      gap: 8,
+                      padding: '6px 8px',
+                      borderRadius: 6,
                       fontSize: 12,
                       color: '#111827',
                       cursor: 'pointer',
-                      background: checked ? '#fff7ed' : 'transparent',
+                      background: checked ? 'var(--brand-light)' : 'var(--surface-muted)',
+                      border: checked ? '1px solid var(--brand)' : '1px solid transparent',
+                      transition: 'background 0.12s, border-color 0.12s',
                     }}
                   >
                     <input
@@ -133,6 +143,7 @@ export function SelectColumnsNode({ id, data, selected }: NodeProps<PipelineNode
                     />
                     <span
                       style={{
+                        flex: 1,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -145,31 +156,35 @@ export function SelectColumnsNode({ id, data, selected }: NodeProps<PipelineNode
               })}
             </div>
 
-            <button
-              type="button"
-              onClick={() => update({ fields: [] })}
-              style={nodeButtonStyle}
-              className="nodrag"
+            {/* 底部操作：重置 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
+                paddingTop: 10,
+                marginTop: 8,
+                borderTop: '1px solid #f0f0f3',
+              }}
             >
-              重置（保留全部列）
-            </button>
+              {fields.length > 0 ? (
+                <span style={{ fontSize: 10.5, color: '#c2410c', lineHeight: 1.3 }}>
+                  未勾选列将在输出中丢弃
+                </span>
+              ) : (
+                <span style={{ fontSize: 10.5, color: '#9ca3af' }}>默认保留全部列</span>
+              )}
+              <button
+                type="button"
+                onClick={() => update({ fields: [] })}
+                style={nodeButtonStyle}
+                className="nodrag"
+              >
+                重置
+              </button>
+            </div>
           </>
-        )}
-
-        {fields.length > 0 && (
-          <div
-            style={{
-              padding: '5px 8px',
-              background: '#fff7ed',
-              border: '1px solid #fed7aa',
-              borderRadius: 6,
-              fontSize: 10.5,
-              color: '#c2410c',
-              lineHeight: 1.4,
-            }}
-          >
-            其余列将在输出中被丢弃
-          </div>
         )}
       </div>
     </BaseNode>
