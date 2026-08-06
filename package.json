@@ -2,7 +2,7 @@
   "name": "excel-bi-builder",
   "version": "0.2.0",
   "description": "积木式 Excel 可视化处理工具 - 类 Tableau 的拖拽编码 BI",
-  "main": "dist-electron/main.js",
+  "main": "dist-electron/electron/main.js",
   "author": "Excel BI Builder",
   "license": "MIT",
   "scripts": {

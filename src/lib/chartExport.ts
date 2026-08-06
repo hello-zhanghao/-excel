@@ -263,7 +263,7 @@ export async function exportToExcel(ctx: ExportContext): Promise<void> {
   const columns = queryResult.columns
 
   // 构建工作表数据（带表头）
-  const wsData: (string | number)[][] = [columns]
+  const wsData: (string | number | boolean)[][] = [columns]
   for (const row of rows) {
     wsData.push(columns.map((col) => row[col] ?? ''))
   }

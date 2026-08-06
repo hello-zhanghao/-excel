@@ -80,7 +80,7 @@ export default function App() {
             </svg>
           </button>
         )}
-        <span className="logo">📊 Excel BI Builder</span>
+        <span className="logo">Excel BI Builder</span>
 
         {/* 运行环境徽章 — 点击查看详情 */}
         <span
@@ -88,31 +88,29 @@ export default function App() {
           onClick={() => setShowRuntimeInfo(true)}
           title="点击查看运行时信息"
         >
-          {env === 'electron' ? '🖥️ 桌面端 · DuckDB' : '🌐 浏览器 · SheetJS'}
+          {env === 'electron' ? '桌面端 · DuckDB' : '浏览器 · SheetJS'}
         </span>
 
         {/* 模式切换 */}
-        {loaded && (
-          <div className="mode-switcher">
-            <button
-              className={`mode-btn ${appMode === 'visualize' ? 'active' : ''}`}
-              onClick={() => setAppMode('visualize')}
-            >
-              📊 可视化
-            </button>
-            <button
-              className={`mode-btn ${appMode === 'pipeline' ? 'active' : ''}`}
-              onClick={() => setAppMode('pipeline')}
-            >
-              🔧 数据流
-            </button>
-          </div>
-        )}
+        <div className="mode-switcher">
+          <button
+            className={`mode-btn ${appMode === 'visualize' ? 'active' : ''}`}
+            onClick={() => setAppMode('visualize')}
+          >
+            可视化
+          </button>
+          <button
+            className={`mode-btn ${appMode === 'pipeline' ? 'active' : ''}`}
+            onClick={() => setAppMode('pipeline')}
+          >
+            数据流
+          </button>
+        </div>
 
         <div className="spacer" />
         {loaded && appMode === 'visualize' && (
           <button className="btn-open" onClick={handleOpenFile}>
-            📂 打开文件
+            打开文件
           </button>
         )}
         <input
@@ -132,7 +130,9 @@ export default function App() {
         </div>
       )}
 
-      {!loaded && !loading ? (
+      {appMode === 'pipeline' ? (
+        <PipelineCanvas />
+      ) : !loaded ? (
         <div className="empty-state">
           <div className="icon">📊</div>
           <div className="title">积木式 Excel 可视化工具</div>
@@ -192,8 +192,6 @@ export default function App() {
             {env === 'electron' ? '📂 选择本地文件' : '📤 上传 Excel/CSV'}
           </button>
         </div>
-      ) : appMode === 'pipeline' ? (
-        <PipelineCanvas />
       ) : (
         <>
           {/* 移动端遮罩层 */}

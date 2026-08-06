@@ -20,13 +20,14 @@ function createWindow() {
     },
   })
 
-  // 开发模式加载 dev server，生产模式加载构建产物
-  const isDev = !app.isPackaged
+  // 开发模式加载 dev server，生产模式加载构建产物。
+  // 支持通过 ELECTRON_DEV_URL 环境变量指定开发服务器地址（便于调试/多端口）。
+  const isDev = !app.isPackaged || !!process.env.ELECTRON_DEV_URL
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173')
+    mainWindow.loadURL(process.env.ELECTRON_DEV_URL || 'http://localhost:5173')
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
 
   mainWindow.on('closed', () => {

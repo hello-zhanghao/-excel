@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv, FieldKind } from '@/types'
+import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv } from '@/types'
+import { FieldKind } from '@/types'
 import { getDataSource, getEnv } from '@/lib/dataSourceFactory'
 import { generateSQL, inferChartType, generateG2Spec } from '@/lib/encodingEngine'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
@@ -90,7 +91,7 @@ const defaultEncoding: EncodingConfig = {}
 
 export const useStore = create<AppState>((set, get) => ({
   env: getEnv(),
-  appMode: 'visualize',
+  appMode: 'pipeline',
   pipelineData: null,
   fields: [],
   tableName: '',
@@ -281,6 +282,8 @@ export const useStore = create<AppState>((set, get) => ({
         queryResult: null,
         g2Spec: null,
       })
+    }).catch((err: any) => {
+      set({ error: err.message })
     })
   },
 }))

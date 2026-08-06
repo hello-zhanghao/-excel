@@ -268,16 +268,34 @@ function PipelineCanvasInner() {
     event.dataTransfer.effectAllowed = 'move'
   }
 
+  /** 组件面板点击添加节点时的级联偏移计数（避免新节点全部堆叠在画布中心） */
+  const palettePlaceRef = useRef(0)
+
+  /** 生成一个彼此错开的放置位置：从画布中心向右下级联，超过一列后换行 */
+  const getCascadePosition = useCallback(
+    (): { x: number; y: number } => {
+      const center = rfInstance!.screenToFlowPosition({
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      })
+      const step = 48
+      const i = palettePlaceRef.current++
+      // 每行最多放 5 个，超过则换到下一行，避免无限向右/向下偏移
+      return {
+        x: center.x + (i % 5) * step * 2,
+        y: center.y + Math.floor(i / 5) * step * 2,
+      }
+    },
+    [rfInstance],
+  )
+
   /** 创建一个新节点并添加到画布 */
   const createNode = useCallback(
     (type: PipelineNodeType, position?: { x: number; y: number }) => {
       if (!rfInstance) return
 
-      // 如果未指定位置，放在画布中心
-      const pos = position ?? rfInstance.screenToFlowPosition({
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-      })
+      // 拖放到画布时使用拖放位置；点击组件面板时使用级联错开的位置
+      const pos = position ?? getCascadePosition()
 
       const newNode: Node = {
         id: getNodeId(),
@@ -291,7 +309,7 @@ function PipelineCanvasInner() {
 
       setNodes((nds) => [...nds, newNode])
     },
-    [rfInstance, setNodes],
+    [rfInstance, setNodes, getCascadePosition],
   )
 
   /** 点击组件面板项，在画布中心添加节点 */
@@ -689,7 +707,7 @@ function PipelineCanvasInner() {
             onClick={() => setPaletteCollapsed(false)}
             title="展开组件面板"
           >
-            <span className="panel-icon">📦</span>
+            <span className="panel-collapse-mark">组件</span>
             <button className="panel-collapse-btn" type="button">
               »
             </button>
@@ -700,7 +718,7 @@ function PipelineCanvasInner() {
               className="palette-title"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
             >
-              数据处理组件
+              组件
               <button
                 type="button"
                 className="panel-collapse-btn"
@@ -710,8 +728,8 @@ function PipelineCanvasInner() {
                 «
               </button>
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-light)', padding: '0 12px 8px' }}>
-              点击添加 · 或拖拽到画布
+            <div style={{ fontSize: 10, color: 'var(--text-light)', padding: '0 14px 8px' }}>
+              点击或拖拽到画布
             </div>
             {PALETTE_ITEMS.map((item) => (
               <div
@@ -722,49 +740,26 @@ function PipelineCanvasInner() {
                 onClick={() => onPaletteClick(item.type)}
                 title={`点击添加${item.label}到画布`}
               >
-                <span className="palette-icon">{item.icon}</span>
+                <span className="palette-dot" />
                 <span className="palette-label">{item.label}</span>
               </div>
             ))}
 
             {/* 快速示例按钮 */}
-            <div style={{ padding: '8px 12px', marginTop: 'auto' }}>
+            <div style={{ padding: '8px 14px', marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <button
                 className="quick-demo-btn"
                 onClick={onQuickDemo}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
-                  marginBottom: 6,
-                }}
+                title="快速搭建示例流水线"
               >
-                ⚡ 快速搭建示例
+                快速搭建示例
               </button>
               <button
                 className="quick-demo-btn"
                 onClick={onJoinDemo}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(139, 92, 246, 0.3)',
-                }}
+                title="多表关联示例"
               >
-                🔗 多表关联示例
+                多表关联示例
               </button>
             </div>
           </>
@@ -789,13 +784,13 @@ function PipelineCanvasInner() {
             onClick={onRun}
             disabled={isRunning || nodes.length === 0}
           >
-            {isRunning ? '⏳ 执行中...' : '▶ 运行流水线'}
+            {isRunning ? '执行中…' : '运行'}
           </button>
           <button className="toolbar-btn" onClick={onClear} disabled={nodes.length === 0}>
-            🗑 清空
+            清空
           </button>
           <button className="toolbar-btn tpl-toolbar-btn" onClick={() => setShowTemplateMgr(true)}>
-            📂 模板
+            模板
           </button>
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
@@ -855,7 +850,7 @@ function PipelineCanvasInner() {
             style={{ height: previewCollapsed ? 30 : previewHeight }}
           >
             <div className="preview-header">
-              <span>📊 {previewData.nodeLabel || '数据预览'}</span>
+              <span>{previewData.nodeLabel || '数据预览'}</span>
               {!previewCollapsed && (
                 <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
                   {previewData.rowCount != null
@@ -883,7 +878,7 @@ function PipelineCanvasInner() {
                     flexShrink: 0,
                   }}
                 >
-                  {exporting ? '⏳ 导出中...' : '⬇ 导出 Excel'}
+                  {exporting ? '导出中…' : '导出 Excel'}
                 </button>
               )}
               <button

@@ -151,21 +151,21 @@
    2. 节点样式
    ---------------------------------------------------------- */
 
-/* 节点容器：宽度 220px，圆角 10px，白色背景，阴影，边框 */
+/* 节点容器：紧凑卡片，无阴影，白底细边框 + 任务色左侧条 */
 .pipeline-node {
-  width: 220px;
-  border-radius: 10px;
+  width: 140px;
+  border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  box-shadow: none;
   overflow: hidden;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-/* 选中状态：边框变紫色 */
+/* 选中状态：柔和高亮环 */
 .pipeline-node.selected {
   border-color: var(--brand);
-  box-shadow: 0 0 0 1px var(--brand), var(--shadow-lg);
+  box-shadow: 0 0 0 2px rgba(109, 92, 255, 0.18);
 }
 
 /* 标题栏：flex 布局，图标 + 标题 + 状态点 */
@@ -383,22 +383,20 @@
   letter-spacing: 0.5px;
 }
 
-/* 可拖拽项：flex 布局，图标 + 名称，hover 高亮，cursor grab */
+/* 可拖拽项：flex 布局，色点 + 名称，hover 高亮，cursor grab */
 .palette-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 6px 14px;
   font-size: 12px;
   color: var(--text);
   cursor: grab;
-  border-left: 2px solid transparent;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .palette-item:hover {
   background: var(--surface-muted);
-  border-left-color: var(--brand);
   color: var(--brand);
 }
 
@@ -406,10 +404,17 @@
   cursor: grabbing;
 }
 
-.palette-item .palette-icon {
-  font-size: 14px;
-  line-height: 1;
+.palette-item .palette-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
   flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.palette-item:hover .palette-dot {
+  background: var(--brand);
 }
 
 .palette-item .palette-label {
@@ -418,15 +423,25 @@
   text-overflow: ellipsis;
 }
 
-/* 快速示例按钮 hover 效果 */
-.quick-demo-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+/* 快速示例按钮：轻量描边按钮 */
+.quick-demo-btn {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  font-family: var(--font);
 }
 
-.quick-demo-btn:active {
-  transform: translateY(0);
+.quick-demo-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-light);
 }
 
 /* 移动端：面板可折叠 */
@@ -1060,9 +1075,12 @@
   color: var(--brand);
 }
 
-.panel-collapsed-v .panel-icon {
-  font-size: 16px;
+.panel-collapsed-v .panel-collapse-mark {
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
 }
 
 /* 折叠 / 展开按钮 */

@@ -54,8 +54,8 @@ export class DataService {
     this.tableName = `t_${name.replace(/[^a-zA-Z0-9_]/g, '_')}`
 
     if (rows.length === 0) {
-      // 空数据：创建一个空表
-      await this.runSql(`CREATE TABLE ${this.tableName} (placeholder VARCHAR)`)
+      // 空数据：创建一个空表（覆盖旧表，避免重复运行报错）
+      await this.runSql(`CREATE OR REPLACE TABLE ${this.tableName} (placeholder VARCHAR)`)
     } else {
       // 序列化行数据为 JSON（Date 对象转为 ISO 字符串）
       const serialized = rows.map((row) => {
@@ -76,7 +76,7 @@ export class DataService {
 
       try {
         await this.runSql(
-          `CREATE TABLE ${this.tableName} AS SELECT * FROM read_json_auto('${tmpPath}', auto_detect=true)`
+          `CREATE OR REPLACE TABLE ${this.tableName} AS SELECT * FROM read_json_auto('${tmpPath}', auto_detect=true)`
         )
       } finally {
         // 清理临时文件
@@ -94,7 +94,7 @@ export class DataService {
    */
   private loadCSV(filePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const sql = `CREATE TABLE ${this.tableName} AS SELECT * FROM read_csv_auto('${filePath}', header=true)`
+      const sql = `CREATE OR REPLACE TABLE ${this.tableName} AS SELECT * FROM read_csv_auto('${filePath}', header=true)`
       this.db.run(sql, (err) => {
         if (err) reject(new Error(`CSV 加载失败: ${err.message}`))
         else resolve()
@@ -112,7 +112,7 @@ export class DataService {
     try {
       await this.runSql(`INSTALL spatial; LOAD spatial;`)
       await this.runSql(
-        `CREATE TABLE ${this.tableName} AS SELECT * FROM st_read('${filePath}')`
+        `CREATE OR REPLACE TABLE ${this.tableName} AS SELECT * FROM st_read('${filePath}')`
       )
     } catch {
       // 回退：用 xlsx 包转 CSV（在主进程也可用）
@@ -129,7 +129,7 @@ export class DataService {
 
   private loadParquet(filePath: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const sql = `CREATE TABLE ${this.tableName} AS SELECT * FROM read_parquet('${filePath}')`
+      const sql = `CREATE OR REPLACE TABLE ${this.tableName} AS SELECT * FROM read_parquet('${filePath}')`
       this.db.run(sql, (err) => {
         if (err) reject(new Error(`Parquet 加载失败: ${err.message}`))
         else resolve()

@@ -66,7 +66,7 @@ export function NodeConfigPanel({
           onClick={onToggleCollapsed}
           title="展开配置面板"
         >
-          <span className="panel-icon">{info.icon}</span>
+          <span className="panel-collapse-mark">配置</span>
           <button className="panel-collapse-btn" type="button">
             «
           </button>
@@ -81,7 +81,7 @@ export function NodeConfigPanel({
             style={{ position: 'absolute', left: 0, top: 0, bottom: 0 }}
           />
 
-          {/* 标题栏 */}
+          {/* 标题栏：白底细边框 + 色点，去彩色底 */}
           <div
             className="node-config-header"
             style={{
@@ -89,13 +89,21 @@ export function NodeConfigPanel({
               alignItems: 'center',
               gap: 8,
               padding: '12px 14px',
-              background: info.color,
-              color: '#ffffff',
-              borderRadius: '0 0 0 0',
+              background: 'transparent',
+              color: 'var(--text)',
+              borderBottom: '1px solid var(--border)',
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 16, lineHeight: 1 }}>{info.icon}</span>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: info.color,
+                flexShrink: 0,
+              }}
+            />
             <span style={{ flex: 1, fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {info.title}
             </span>
@@ -103,11 +111,11 @@ export function NodeConfigPanel({
               <span
                 title={status}
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   borderRadius: '50%',
-                  background: status === 'success' ? '#22c55e' : status === 'error' ? '#ef4444' : status === 'running' ? '#ffffff' : 'rgba(255,255,255,0.7)',
-                  boxShadow: status === 'running' ? '0 0 4px 1px rgba(255,255,255,0.8)' : 'none',
+                  background: status === 'success' ? '#22c55e' : status === 'error' ? '#ef4444' : status === 'running' ? '#6d5cff' : '#c0c0d0',
+                  boxShadow: status === 'running' ? '0 0 4px 1px rgba(109,92,255,0.6)' : 'none',
                   flexShrink: 0,
                 }}
               />
@@ -118,12 +126,12 @@ export function NodeConfigPanel({
               title="收起面板"
               style={{
                 border: 'none',
-                background: 'rgba(255,255,255,0.2)',
-                color: '#fff',
+                background: 'transparent',
+                color: 'var(--text-muted)',
                 borderRadius: 6,
-                width: 24,
-                height: 24,
-                fontSize: 13,
+                width: 26,
+                height: 26,
+                fontSize: 14,
                 lineHeight: 1,
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -140,12 +148,12 @@ export function NodeConfigPanel({
               title="关闭配置面板"
               style={{
                 border: 'none',
-                background: 'rgba(255,255,255,0.2)',
-                color: '#fff',
+                background: 'transparent',
+                color: 'var(--text-muted)',
                 borderRadius: 6,
-                width: 24,
-                height: 24,
-                fontSize: 14,
+                width: 26,
+                height: 26,
+                fontSize: 15,
                 lineHeight: 1,
                 cursor: 'pointer',
                 flexShrink: 0,
@@ -185,9 +193,9 @@ export function NodeConfigPanel({
               type="button"
               onClick={handleDelete}
               style={{
-                border: '1px solid #ef4444',
+                border: '1px solid #fecaca',
                 background: '#ffffff',
-                color: '#ef4444',
+                color: '#dc2626',
                 borderRadius: 6,
                 padding: '5px 14px',
                 fontSize: 12,
@@ -200,10 +208,10 @@ export function NodeConfigPanel({
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = '#ffffff'
-                e.currentTarget.style.color = '#ef4444'
+                e.currentTarget.style.color = '#dc2626'
               }}
             >
-              🗑 删除此节点
+              删除此节点
             </button>
           </div>
         </>

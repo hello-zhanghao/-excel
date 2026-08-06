@@ -178,13 +178,12 @@ export function BaseNode({
         selectNode(nodeId)
       }}
       style={{
-        width: 150,
+        width: 140,
         background: '#ffffff',
-        borderRadius: 10,
-        border: `2px solid ${selected ? color : '#e5e7eb'}`,
-        boxShadow: selected
-          ? `0 0 0 3px ${hexWithAlpha(color, 0.2)}, 0 4px 12px rgba(0,0,0,0.12)`
-          : '0 2px 8px rgba(0,0,0,0.08)',
+        borderRadius: 8,
+        border: `1px solid ${selected ? color : '#e4e4ec'}`,
+        borderLeft: `3px solid ${color}`,
+        boxShadow: selected ? `0 0 0 2px ${hexWithAlpha(color, 0.18)}` : 'none',
         overflow: 'visible',
         boxSizing: 'border-box',
         cursor: 'pointer',
@@ -228,20 +227,18 @@ export function BaseNode({
         )
       })}
 
-      {/* 标题栏：图标 + 标题 + 状态 */}
+      {/* 标题行：文字 + 状态点（无彩色底、无 emoji） */}
       <div
         className="pipeline-node-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          padding: '8px 10px',
-          background: color,
-          color: '#ffffff',
-          borderRadius: '10px 10px 0 0',
+          padding: '8px 10px 4px',
+          background: 'transparent',
+          color: '#1a1a2e',
         }}
       >
-        <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
         <span
           style={{
             flex: 1,
@@ -257,8 +254,8 @@ export function BaseNode({
         <span
           title={status}
           style={{
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             borderRadius: '50%',
             background: statusColor,
             boxShadow: isRunning ? `0 0 4px 1px ${statusColor}` : 'none',
@@ -272,13 +269,12 @@ export function BaseNode({
       <div
         className="pipeline-node-body"
         style={{
-          padding: '6px 10px 8px',
-          minHeight: 18,
-          fontSize: 10.5,
-          color: '#6b7280',
+          padding: '2px 10px 8px',
+          minHeight: 16,
+          fontSize: 10,
+          color: '#9ca3af',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
           gap: 4,
           overflow: 'hidden',
         }}
@@ -291,7 +287,7 @@ export function BaseNode({
             maxWidth: '100%',
           }}
         >
-          {summary ?? '点击查看配置 ⚙'}
+          {summary ?? '点击配置'}
         </span>
       </div>
 

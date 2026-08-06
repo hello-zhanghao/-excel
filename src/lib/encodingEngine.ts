@@ -184,7 +184,7 @@ export function generateG2Spec(
   }
 
   // 柱状图样式
-  if (rawType === 'bar' || rawType === 'auto') {
+  if (rawType === 'bar') {
     spec.style = { fillOpacity: 0.85, radius: 4 }
   }
 

@@ -137,21 +137,21 @@ function deserializeEdges(
   edges: SerializableEdge[],
   idMap: Map<string, string>,
 ): Edge[] {
-  return edges
-    .map((e) => {
-      const source = idMap.get(e.source)
-      const target = idMap.get(e.target)
-      if (!source || !target) return null
-      return {
-        id: `e-${source}-${target}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        source,
-        target,
-        sourceHandle: e.sourceHandle ?? undefined,
-        targetHandle: e.targetHandle ?? undefined,
-        animated: e.animated ?? true,
-      }
+  const result: Edge[] = []
+  for (const e of edges) {
+    const source = idMap.get(e.source)
+    const target = idMap.get(e.target)
+    if (!source || !target) continue
+    result.push({
+      id: `e-${source}-${target}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      source,
+      target,
+      sourceHandle: e.sourceHandle ?? undefined,
+      targetHandle: e.targetHandle ?? undefined,
+      animated: e.animated ?? true,
     })
-    .filter((e): e is Edge => e !== null)
+  }
+  return result
 }
 
 // ---------------------------------------------------------------------------
