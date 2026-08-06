@@ -1,4 +1,4 @@
-import type { DashboardYField, FieldMeta, QueryResult } from '@/types'
+import type { DashboardYField, DashboardMapConfig, FieldMeta, QueryResult } from '@/types'
 
 /**
  * 仪表盘查询与图表生成引擎
@@ -149,4 +149,84 @@ export function generateDashboardOption(
 export function defaultAggregation(fields: FieldMeta[], fieldName: string): DashboardYField['aggregation'] {
   const f = fields.find((x) => x.name === fieldName)
   return f && f.kind === 'measure' ? 'sum' : 'count'
+}
+
+/**
+ * 生成地图打点 ECharts option（geo + scatter）
+ * 直接取原始行，不聚合；经度落在 [-180,180]、纬度落在 [-90,90] 才作为有效点
+ */
+export function generateDashboardMapOption(
+  map: DashboardMapConfig,
+  rows: Record<string, any>[]
+): Record<string, any> {
+  const { lonField, latField, nameField, sizeField } = map
+  const data: any[] = []
+  for (const r of rows) {
+    const lng = Number(r[lonField])
+    const lat = Number(r[latField])
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue
+    if (lng < -180 || lng > 180 || lat < -90 || lat > 90) continue
+    const point: any = {
+      name: nameField ? String(r[nameField] ?? '') : `${lng}, ${lat}`,
+      value: [lng, lat],
+      raw: r,
+    }
+    if (sizeField) {
+      const s = Number(r[sizeField] ?? 0)
+      point.value.push(Number.isFinite(s) ? s : 0)
+    }
+    data.push(point)
+  }
+
+  // 尺寸值域 → 气泡缩放
+  const sizeValues = sizeField
+    ? data.map((p) => Number(p.value[2])).filter((n) => Number.isFinite(n))
+    : []
+  const sizeMin = sizeValues.length ? Math.min(...sizeValues) : 0
+  const sizeMax = sizeValues.length ? Math.max(...sizeValues) : 1
+  const sizeSpan = sizeMax - sizeMin || 1
+  const symbolSize = sizeField
+    ? (val: any) => 6 + ((Number(val[2]) - sizeMin) / sizeSpan) * 22
+    : 8
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (p: any) => {
+        const raw = p.data && p.data.raw
+        if (!raw) return `${p.name}`
+        const lines = [`<b>${raw[nameField ?? ''] || p.name}</b>`]
+        if (lonField) lines.push(`${lonField}: ${raw[lonField]}`)
+        if (latField) lines.push(`${latField}: ${raw[latField]}`)
+        if (sizeField) lines.push(`${sizeField}: ${raw[sizeField]}`)
+        return lines.join('<br/>')
+      },
+    },
+    geo: {
+      map: 'china',
+      roam: true,
+      zoom: 1.1,
+      scaleLimit: { min: 1, max: 12 },
+      label: { show: false },
+      itemStyle: {
+        areaColor: '#eef0f6',
+        borderColor: '#c5c9d6',
+        borderWidth: 0.6,
+      },
+      emphasis: {
+        label: { show: false },
+        itemStyle: { areaColor: '#dfe3ee' },
+      },
+      select: { disabled: true },
+    },
+    series: [{
+      type: 'scatter',
+      coordinateSystem: 'geo',
+      data,
+      symbolSize,
+      itemStyle: { color: '#f97316', opacity: 0.85 },
+      emphasis: { scale: 1.4 },
+    }],
+    animation: data.length < 5000,
+  }
 }

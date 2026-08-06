@@ -96,6 +96,18 @@ export interface CatalogTable {
 }
 
 /**
+ * 仪表盘地图配置 —— 经纬度打点
+ */
+export interface DashboardMapConfig {
+  lonField: string
+  latField: string
+  /** 气泡名称字段（如城市名），用于提示 */
+  nameField?: string
+  /** 气泡大小字段（数值度量） */
+  sizeField?: string
+}
+
+/**
  * 仪表盘图表卡片 —— 独立数据源、多 X 轴、多 Y 轴（每 Y 独立图表类型）
  */
 export interface DashboardChart {
@@ -103,6 +115,10 @@ export interface DashboardChart {
   title: string
   /** 所选数据源 key（对应数据源目录） */
   dataSource: string
+  /** 卡片图表类型：组合图（多Y）或地图 */
+  chartType: 'combo' | 'map'
+  /** 地图配置（仅 chartType === 'map' 时使用） */
+  mapConfig?: DashboardMapConfig
   /** 多 X 轴字段 */
   xFields: string[]
   /** 多 Y 轴字段（每项独立聚合 + 图表类型） */

@@ -10,9 +10,9 @@ import {
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts } from 'echarts/core'
-import type { DashboardYField } from '@/types'
+import type { DashboardYField, DashboardMapConfig } from '@/types'
 import { useStore } from '@/store/useStore'
-import { queryDashboard, generateDashboardOption, defaultAggregation } from '@/lib/dashboardEngine'
+import { queryDashboard, generateDashboardOption, generateDashboardMapOption, defaultAggregation } from '@/lib/dashboardEngine'
 import { CHINA_GEOJSON } from '@/data/chinaGeo'
 
 // 按需注册 ECharts 模块
@@ -42,21 +42,26 @@ interface ChartCardProps {
   id: string
   title: string
   dataSource: string
+  chartType: 'combo' | 'map'
+  mapConfig?: DashboardMapConfig
   xFields: string[]
   yFields: DashboardYField[]
   onTitleChange: (title: string) => void
   onDataSourceChange: (key: string) => void
+  onChartTypeChange: (type: 'combo' | 'map') => void
+  onMapConfigChange: (config: DashboardMapConfig) => void
   onXFieldsChange: (fields: string[]) => void
   onYFieldsChange: (fields: DashboardYField[]) => void
   onRemove: () => void
 }
 
 /**
- * 仪表盘图表卡片 —— 独立数据源 + 多X多Y下拉配置 + 组合图表
+ * 仪表盘图表卡片 —— 独立数据源、组合图（多X多Y）或地图
  */
 export function ChartCard({
-  id, title, dataSource, xFields, yFields,
-  onTitleChange, onDataSourceChange, onXFieldsChange, onYFieldsChange, onRemove,
+  id, title, dataSource, chartType, mapConfig, xFields, yFields,
+  onTitleChange, onDataSourceChange, onChartTypeChange, onMapConfigChange,
+  onXFieldsChange, onYFieldsChange, onRemove,
 }: ChartCardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ECharts | null>(null)
@@ -82,16 +87,37 @@ export function ChartCard({
     }
   }, [])
 
-  // 当数据源 / X / Y 变化时自动查询并重绘
+  // 当数据源 / 图表类型 / 字段变化时自动查询并重绘
   useEffect(() => {
-    if (!table || yFields.length === 0) {
+    const chart = chartRef.current
+    if (!table) {
       setResult(null)
-      if (chartRef.current) chartRef.current.clear()
+      if (chart) chart.clear()
+      return
+    }
+
+    // 地图模式
+    if (chartType === 'map') {
+      const mc = mapConfig
+      if (mc && mc.lonField && mc.latField) {
+        const option = generateDashboardMapOption(mc, rows)
+        setResult({ rows, map: true })
+        if (chart) chart.setOption(option, true)
+      } else {
+        setResult(null)
+        if (chart) chart.clear()
+      }
+      return
+    }
+
+    // 组合图模式
+    if (yFields.length === 0) {
+      setResult(null)
+      if (chart) chart.clear()
       return
     }
     const q = queryDashboard(rows, xFields, yFields)
     setResult(q)
-    const chart = chartRef.current
     if (!chart) return
     if (q.rows.length === 0) {
       chart.clear()
@@ -99,7 +125,7 @@ export function ChartCard({
     }
     const option = generateDashboardOption(xFields, yFields, q)
     chart.setOption(option, true)
-  }, [dataSource, xFields, yFields, table, rows])
+  }, [dataSource, chartType, mapConfig, xFields, yFields, table, rows])
 
   // 已选 X 字段集合（用于下拉过滤）
   const availableXFields = fields.filter((f) => !xFields.includes(f.name))
@@ -127,6 +153,10 @@ export function ChartCard({
 
   const removeYField = (yId: string) => {
     onYFieldsChange(yFields.filter((y) => y.id !== yId))
+  }
+
+  const patchMapConfig = (patch: Partial<DashboardMapConfig>) => {
+    onMapConfigChange({ ...(mapConfig ?? { lonField: '', latField: '' }), ...patch })
   }
 
   return (
@@ -168,84 +198,161 @@ export function ChartCard({
           </select>
         </div>
 
-        {/* X 轴多选 */}
+        {/* 图表类型 */}
         <div className="cfg-row">
-          <label className="cfg-label">X 轴</label>
-          <div className="cfg-multi">
-            {xFields.map((f) => (
-              <span key={f} className="tag">
-                {f}
-                <span
-                  className="tag-remove"
-                  onClick={() => onXFieldsChange(xFields.filter((x) => x !== f))}
-                >
-                  ×
-                </span>
-              </span>
-            ))}
-            <select
-              className="cfg-select cfg-add"
-              value=""
-              onChange={(e) => addXField(e.target.value)}
+          <label className="cfg-label">类型</label>
+          <div className="cfg-seg">
+            <button
+              className={`seg-btn ${chartType === 'combo' ? 'active' : ''}`}
+              onClick={() => onChartTypeChange('combo')}
             >
-              <option value="">+ 添加 X 字段</option>
-              {availableXFields.map((f) => (
-                <option key={f.name} value={f.name}>{f.name}</option>
-              ))}
-              {availableXFields.length === 0 && <option disabled>无可选字段</option>}
-            </select>
+              组合图
+            </button>
+            <button
+              className={`seg-btn ${chartType === 'map' ? 'active' : ''}`}
+              onClick={() => onChartTypeChange('map')}
+            >
+              地图
+            </button>
           </div>
         </div>
 
-        {/* Y 轴多选（每个独立聚合 + 图表类型） */}
-        <div className="cfg-row cfg-row-y">
-          <label className="cfg-label">Y 轴</label>
-          <div className="cfg-y-list">
-            {yFields.map((y) => (
-              <div className="cfg-y-item" key={y.id}>
+        {chartType === 'combo' ? (
+          <>
+            {/* X 轴多选 */}
+            <div className="cfg-row">
+              <label className="cfg-label">X 轴</label>
+              <div className="cfg-multi">
+                {xFields.map((f) => (
+                  <span key={f} className="tag">
+                    {f}
+                    <span
+                      className="tag-remove"
+                      onClick={() => onXFieldsChange(xFields.filter((x) => x !== f))}
+                    >
+                      ×
+                    </span>
+                  </span>
+                ))}
                 <select
-                  className="cfg-select"
-                  value={y.field}
-                  onChange={(e) => patchYField(y.id, { field: e.target.value })}
+                  className="cfg-select cfg-add"
+                  value=""
+                  onChange={(e) => addXField(e.target.value)}
                 >
-                  {fields.map((f) => (
+                  <option value="">+ 添加 X 字段</option>
+                  {availableXFields.map((f) => (
                     <option key={f.name} value={f.name}>{f.name}</option>
                   ))}
                 </select>
-                <select
-                  className="cfg-select cfg-agg"
-                  value={y.aggregation}
-                  onChange={(e) => patchYField(y.id, { aggregation: e.target.value as DashboardYField['aggregation'] })}
-                >
-                  {AGG_OPTIONS.map((a) => (
-                    <option key={a.value} value={a.value}>{a.label}</option>
-                  ))}
-                </select>
-                <select
-                  className="cfg-select cfg-type"
-                  value={y.chartType}
-                  onChange={(e) => patchYField(y.id, { chartType: e.target.value as DashboardYField['chartType'] })}
-                >
-                  {TYPE_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-                <button className="cfg-remove" onClick={() => removeYField(y.id)}>×</button>
               </div>
-            ))}
-            <select
-              className="cfg-select cfg-add"
-              value=""
-              onChange={(e) => addYField(e.target.value)}
-            >
-              <option value="">+ 添加 Y 字段</option>
-              {availableYFields.map((f) => (
-                <option key={f.name} value={f.name}>{f.name}</option>
-              ))}
-              {availableYFields.length === 0 && <option disabled>无可选字段</option>}
-            </select>
-          </div>
-        </div>
+            </div>
+
+            {/* Y 轴多选（每个独立聚合 + 图表类型） */}
+            <div className="cfg-row cfg-row-y">
+              <label className="cfg-label">Y 轴</label>
+              <div className="cfg-y-list">
+                {yFields.map((y) => (
+                  <div className="cfg-y-item" key={y.id}>
+                    <select
+                      className="cfg-select"
+                      value={y.field}
+                      onChange={(e) => patchYField(y.id, { field: e.target.value })}
+                    >
+                      {fields.map((f) => (
+                        <option key={f.name} value={f.name}>{f.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="cfg-select cfg-agg"
+                      value={y.aggregation}
+                      onChange={(e) => patchYField(y.id, { aggregation: e.target.value as DashboardYField['aggregation'] })}
+                    >
+                      {AGG_OPTIONS.map((a) => (
+                        <option key={a.value} value={a.value}>{a.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      className="cfg-select cfg-type"
+                      value={y.chartType}
+                      onChange={(e) => patchYField(y.id, { chartType: e.target.value as DashboardYField['chartType'] })}
+                    >
+                      {TYPE_OPTIONS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                    <button className="cfg-remove" onClick={() => removeYField(y.id)}>×</button>
+                  </div>
+                ))}
+                <select
+                  className="cfg-select cfg-add"
+                  value=""
+                  onChange={(e) => addYField(e.target.value)}
+                >
+                  <option value="">+ 添加 Y 字段</option>
+                  {availableYFields.map((f) => (
+                    <option key={f.name} value={f.name}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* 地图配置：经度 / 纬度 / 名称 / 大小 */}
+            <div className="cfg-row">
+              <label className="cfg-label">经度</label>
+              <select
+                className="cfg-select"
+                value={mapConfig?.lonField ?? ''}
+                onChange={(e) => patchMapConfig({ lonField: e.target.value })}
+              >
+                <option value="">请选择经度字段</option>
+                {fields.map((f) => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="cfg-row">
+              <label className="cfg-label">纬度</label>
+              <select
+                className="cfg-select"
+                value={mapConfig?.latField ?? ''}
+                onChange={(e) => patchMapConfig({ latField: e.target.value })}
+              >
+                <option value="">请选择纬度字段</option>
+                {fields.map((f) => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="cfg-row">
+              <label className="cfg-label">名称</label>
+              <select
+                className="cfg-select"
+                value={mapConfig?.nameField ?? ''}
+                onChange={(e) => patchMapConfig({ nameField: e.target.value || undefined })}
+              >
+                <option value="">（可选）气泡名称</option>
+                {fields.map((f) => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="cfg-row">
+              <label className="cfg-label">大小</label>
+              <select
+                className="cfg-select"
+                value={mapConfig?.sizeField ?? ''}
+                onChange={(e) => patchMapConfig({ sizeField: e.target.value || undefined })}
+              >
+                <option value="">（可选）气泡大小</option>
+                {fields.map((f) => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
       </div>
 
       {/* 图表区 */}
@@ -257,9 +364,11 @@ export function ChartCard({
         />
         {!result || result.rows.length === 0 ? (
           <div className="chart-empty">
-            <div>展开卡片，下拉选择 X 轴和 Y 轴字段</div>
+            <div>展开卡片，{chartType === 'map' ? '选择经度和纬度字段' : '下拉选择 X 轴和 Y 轴字段'}</div>
             <div className="hint">
-              X 轴可选多个字段，Y 轴每个字段可独立设置柱状图或折线图
+              {chartType === 'map'
+                ? '选择含经纬度的数据源，配置经度/纬度即可在地图上打点'
+                : 'X 轴可选多个字段，Y 轴每个字段可独立设置柱状图或折线图'}
             </div>
           </div>
         ) : null}
@@ -268,7 +377,11 @@ export function ChartCard({
       {expanded && result && result.rows.length > 0 && (
         <div className="sql-preview">
           <div className="label">
-            数据源 {table?.name ?? dataSource} · {xFields.join(' / ') || '全部'} · {result.rows.length} 行
+            {chartType === 'map' ? (
+              <>数据源 {table?.name ?? dataSource} · 地图打点 {result.rows.length} 点</>
+            ) : (
+              <>数据源 {table?.name ?? dataSource} · {xFields.join(' / ') || '全部'} · {result.rows.length} 行</>
+            )}
           </div>
         </div>
       )}

@@ -328,6 +328,7 @@ export const useStore = create<AppState>((set, get) => ({
       id,
       title: `图表 ${charts.length + 1}`,
       dataSource,
+      chartType: 'combo',
       xFields: [],
       yFields: [],
     })
