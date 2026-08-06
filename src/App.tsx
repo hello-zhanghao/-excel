@@ -1,8 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useStore } from '@/store/useStore'
 import { FieldPanel } from '@/components/FieldPanel'
-import { EncodingBar } from '@/components/EncodingBar'
-import { ChartCanvas } from '@/components/ChartCanvas'
 import { Dashboard } from '@/components/Dashboard'
 import { PipelineCanvas } from '@/components/PipelineCanvas'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
@@ -32,7 +30,6 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showRuntimeInfo, setShowRuntimeInfo] = useState(false)
   const [runtimeInfo, setRuntimeInfo] = useState<RuntimeInfo | null>(null)
-  const [visView, setVisView] = useState<'single' | 'dashboard'>('dashboard')
 
   // 桌面端：获取运行时版本信息
   useEffect(() => {
@@ -139,8 +136,8 @@ export default function App() {
           <div className="icon">📊</div>
           <div className="title">积木式 Excel 可视化工具</div>
           <div className="desc">
-            加载 Excel/CSV 文件后，拖拽字段到编码槽（X轴、Y轴、颜色等），
-            引擎自动生成 SQL 查询和图表。
+            加载 Excel/CSV 文件后，在仪表盘中添加图表卡片，
+            每张卡片可独立选择数据源、配置 X/Y 轴绘制图表，或用经纬度在地图上打点。
             <br />
             也可进入"数据流"模式，用节点画布构建数据处理流水线。
           </div>
@@ -214,28 +211,7 @@ export default function App() {
           <div className="app-body">
             <FieldPanel />
             <div className="chart-area">
-              <div className="vis-view-switcher">
-                <button
-                  className={`mode-btn ${visView === 'dashboard' ? 'active' : ''}`}
-                  onClick={() => setVisView('dashboard')}
-                >
-                  仪表盘
-                </button>
-                <button
-                  className={`mode-btn ${visView === 'single' ? 'active' : ''}`}
-                  onClick={() => setVisView('single')}
-                >
-                  单图表
-                </button>
-              </div>
-              {visView === 'dashboard' ? (
-                <Dashboard />
-              ) : (
-                <>
-                  <EncodingBar />
-                  <ChartCanvas />
-                </>
-              )}
+              <Dashboard />
             </div>
           </div>
         </>

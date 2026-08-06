@@ -350,6 +350,19 @@ export function ChartCard({
                 ))}
               </select>
             </div>
+            <div className="cfg-row">
+              <label className="cfg-label">分类</label>
+              <select
+                className="cfg-select"
+                value={mapConfig?.colorField ?? ''}
+                onChange={(e) => patchMapConfig({ colorField: e.target.value || undefined })}
+              >
+                <option value="">（可选）按分类着色</option>
+                {fields.map((f) => (
+                  <option key={f.name} value={f.name}>{f.name}</option>
+                ))}
+              </select>
+            </div>
           </>
         )}
       </div>

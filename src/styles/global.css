@@ -749,6 +749,40 @@ body {
   background: var(--bg-secondary);
 }
 
+/* 地图分类图例 */
+.leaflet-color-legend {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  max-height: 180px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.leaflet-color-legend .legend-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.leaflet-color-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.leaflet-color-legend .legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .chart-card-body .chart-empty {
   position: absolute;
   inset: 0;

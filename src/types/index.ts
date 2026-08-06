@@ -105,6 +105,8 @@ export interface DashboardMapConfig {
   nameField?: string
   /** 气泡大小字段（数值度量） */
   sizeField?: string
+  /** 分类维度字段 —— 按分类值用不同颜色打点 */
+  colorField?: string
 }
 
 /**
