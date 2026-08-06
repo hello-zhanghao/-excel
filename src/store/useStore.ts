@@ -1,9 +1,9 @@
 import { create } from 'zustand'
-import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv, DashboardChart } from '@/types'
+import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv, DashboardChart, CatalogTable } from '@/types'
 import { FieldKind } from '@/types'
 import { getDataSource, getEnv } from '@/lib/dataSourceFactory'
 import { generateSQL, inferChartType, generateG2Spec } from '@/lib/encodingEngine'
-import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
+import { SAMPLE_DATASETS, inferFieldsFromRows } from '@/data/sampleDatasets'
 import * as XLSX from 'xlsx'
 
 interface SelectedField {
@@ -68,6 +68,8 @@ interface AppState {
 
   // 仪表盘：多图表卡片
   dashboardCharts: DashboardChart[]
+  /** 仪表盘数据源目录 —— 所有可用的数据源（示例/上传/流水线输出） */
+  catalog: CatalogTable[]
 
   // 移动端 UI 状态
   sidebarOpen: boolean
@@ -91,6 +93,8 @@ interface AppState {
   addDashboardChart: () => void
   updateDashboardChart: (id: string, patch: Partial<DashboardChart>) => void
   removeDashboardChart: (id: string) => void
+  /** 注册一个数据源到仪表盘目录 */
+  registerCatalog: (key: string, name: string, rows: Record<string, any>[], fields: FieldMeta[]) => void
 }
 
 const defaultEncoding: EncodingConfig = {}
@@ -111,6 +115,12 @@ export const useStore = create<AppState>((set, get) => ({
   queryElapsed: null,
   g2Spec: null,
   dashboardCharts: [],
+  catalog: SAMPLE_DATASETS.map((d) => ({
+    key: `sample_${d.id}`,
+    name: d.name,
+    rows: d.rows,
+    fields: inferFieldsFromRows(d.rows),
+  })),
   sidebarOpen: false,
   selectedField: null,
   sqlPreviewOpen: false,
@@ -139,6 +149,10 @@ export const useStore = create<AppState>((set, get) => ({
         g2Spec: null,
         uploadedFile,
       })
+      // 注册到仪表盘数据源目录
+      if (uploadedFile) {
+        get().registerCatalog(ds.getTableName(), file.name, uploadedFile.rows, fields)
+      }
     } catch (err: any) {
       set({ loading: false, error: err.message })
     }
@@ -182,6 +196,10 @@ export const useStore = create<AppState>((set, get) => ({
         g2Spec: null,
         uploadedFile,
       })
+      // 注册到仪表盘数据源目录
+      if (uploadedFile) {
+        get().registerCatalog(ds.getTableName(), uploadedFile.fileName, uploadedFile.rows, fields)
+      }
     } catch (err: any) {
       set({ loading: false, error: err.message })
     }
@@ -208,6 +226,8 @@ export const useStore = create<AppState>((set, get) => ({
         queryResult: null,
         g2Spec: null,
       })
+      // 注册到仪表盘数据源目录
+      get().registerCatalog(ds.getTableName(), dataset.name, dataset.rows, fields)
     } catch (err: any) {
       set({ loading: false, error: err.message })
     }
@@ -289,6 +309,8 @@ export const useStore = create<AppState>((set, get) => ({
         queryResult: null,
         g2Spec: null,
       })
+      // 注册到仪表盘数据源目录
+      get().registerCatalog('pipeline_output', '流水线输出', data.rows, fields)
     }).catch((err: any) => {
       set({ error: err.message })
     })
@@ -297,11 +319,17 @@ export const useStore = create<AppState>((set, get) => ({
   addDashboardChart: () => {
     const id = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
     const charts = [...get().dashboardCharts]
+    // 默认数据源：优先当前激活的数据源，否则用目录第一个
+    const activeKey = get().tableName
+    const dataSource = get().catalog.some((c) => c.key === activeKey)
+      ? activeKey
+      : (get().catalog[0]?.key ?? '')
     charts.push({
       id,
       title: `图表 ${charts.length + 1}`,
-      encoding: {},
-      chartType: 'auto',
+      dataSource,
+      xFields: [],
+      yFields: [],
     })
     set({ dashboardCharts: charts })
   },
@@ -318,5 +346,11 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       dashboardCharts: get().dashboardCharts.filter((c) => c.id !== id),
     })
+  },
+
+  registerCatalog: (key, name, rows, fields) => {
+    const catalog = get().catalog.filter((c) => c.key !== key)
+    catalog.push({ key, name, rows, fields })
+    set({ catalog })
   },
 }))

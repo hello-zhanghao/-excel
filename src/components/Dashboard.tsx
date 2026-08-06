@@ -1,10 +1,10 @@
 import { useStore } from '@/store/useStore'
 import { ChartCard } from './ChartCard'
-import type { ChartType } from '@/types'
+import type { DashboardYField } from '@/types'
 
 /**
  * 仪表盘 —— 多图表卡片网格
- * 每张卡片独立选字段、选类型、出图，可自由增删
+ * 每张卡片独立选数据源、下拉选多X/多Y字段，每Y独立图表类型
  */
 export function Dashboard() {
   const dashboardCharts = useStore((s) => s.dashboardCharts)
@@ -16,7 +16,7 @@ export function Dashboard() {
     <div className="dashboard">
       <div className="dashboard-toolbar">
         <span className="dashboard-title">数据仪表盘</span>
-        <span className="dashboard-sub">每张卡片独立配置一个图表</span>
+        <span className="dashboard-sub">每张卡片独立选数据源，下拉配置多 X / 多 Y 字段</span>
         <div style={{ flex: 1 }} />
         <button className="add-chart-btn" onClick={addDashboardChart}>
           + 添加图表卡片
@@ -29,11 +29,13 @@ export function Dashboard() {
             key={card.id}
             id={card.id}
             title={card.title}
-            encoding={card.encoding as any}
-            chartType={card.chartType}
+            dataSource={card.dataSource}
+            xFields={card.xFields}
+            yFields={card.yFields}
             onTitleChange={(title) => updateDashboardChart(card.id, { title })}
-            onEncodingChange={(encoding) => updateDashboardChart(card.id, { encoding })}
-            onChartTypeChange={(chartType: ChartType) => updateDashboardChart(card.id, { chartType })}
+            onDataSourceChange={(dataSource) => updateDashboardChart(card.id, { dataSource })}
+            onXFieldsChange={(xFields) => updateDashboardChart(card.id, { xFields })}
+            onYFieldsChange={(yFields: DashboardYField[]) => updateDashboardChart(card.id, { yFields })}
             onRemove={() => removeDashboardChart(card.id)}
           />
         ))}
@@ -42,7 +44,9 @@ export function Dashboard() {
           <div className="dashboard-empty">
             <div className="empty-icon">📊</div>
             <div>还没有图表卡片</div>
-            <div className="hint">点击右上角「添加图表卡片」，每张卡片可选择不同的字段绘制自己的图</div>
+            <div className="hint">
+              点击右上角「添加图表卡片」，每张卡片可独立选择数据源，下拉配置多个 X / Y 字段绘制组合图
+            </div>
             <button className="add-chart-btn" onClick={addDashboardChart}>
               + 添加第一张图表卡片
             </button>

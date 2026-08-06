@@ -72,13 +72,41 @@ export interface QueryResult {
 }
 
 /**
- * 仪表盘图表卡片 —— 每张卡片独立承载一份编码配置，绘制一张图
+ * 仪表盘 Y 轴字段配置 —— 每个字段独立聚合方式与图表样式
+ */
+export interface DashboardYField {
+  id: string
+  field: string
+  aggregation: Aggregation
+  /** 每个 Y 字段独立的图表类型：柱状 / 折线 / 面积 */
+  chartType: 'bar' | 'line' | 'area'
+}
+
+/**
+ * 仪表盘数据源目录项
+ * 卡片可在此目录中选择任意数据源进行绘制
+ */
+export interface CatalogTable {
+  /** 数据源唯一键（对应表名） */
+  key: string
+  /** 展示名称 */
+  name: string
+  rows: Record<string, any>[]
+  fields: FieldMeta[]
+}
+
+/**
+ * 仪表盘图表卡片 —— 独立数据源、多 X 轴、多 Y 轴（每 Y 独立图表类型）
  */
 export interface DashboardChart {
   id: string
   title: string
-  encoding: EncodingConfig
-  chartType: ChartType
+  /** 所选数据源 key（对应数据源目录） */
+  dataSource: string
+  /** 多 X 轴字段 */
+  xFields: string[]
+  /** 多 Y 轴字段（每项独立聚合 + 图表类型） */
+  yFields: DashboardYField[]
 }
 
 /**

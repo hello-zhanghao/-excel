@@ -719,26 +719,6 @@ body {
   min-height: 30px;
 }
 
-.chart-card-type-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  border-top: 1px solid var(--border);
-  flex-wrap: wrap;
-}
-
-.chart-card-type-row .chart-type-btn {
-  padding: 3px 10px;
-  font-size: 11px;
-}
-
-.chart-card-type-row .inferred-hint {
-  font-size: 11px;
-  color: var(--text-light);
-  margin-left: 4px;
-}
-
 /* 卡片图表区 */
 .chart-card-body {
   flex: 1;
@@ -767,6 +747,151 @@ body {
 .chart-card .sql-preview {
   padding: 6px 12px;
   max-height: 90px;
+}
+
+/* ---- 卡片下拉配置 ---- */
+.chart-card-config {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-card-config.open {
+  display: flex;
+}
+
+.cfg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cfg-row-y {
+  align-items: flex-start;
+}
+
+.cfg-label {
+  flex-shrink: 0;
+  width: 40px;
+  padding-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cfg-select {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color 0.15s;
+}
+
+.cfg-select:focus {
+  border-color: var(--brand);
+}
+
+.cfg-select.cfg-add {
+  color: var(--brand);
+  font-weight: 500;
+  border-style: dashed;
+}
+
+.cfg-multi {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cfg-multi .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--brand-light);
+  color: var(--brand);
+  font-size: 12px;
+}
+
+.cfg-multi .tag-remove {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.cfg-multi .tag-remove:hover {
+  opacity: 1;
+}
+
+.cfg-multi .cfg-add {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Y 轴列表 */
+.cfg-y-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cfg-y-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cfg-y-item .cfg-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.cfg-y-item .cfg-agg {
+  flex: 1.2;
+}
+
+.cfg-y-item .cfg-type {
+  flex: 0.9;
+}
+
+.cfg-remove {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.cfg-remove:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cfg-y-list > .cfg-add {
+  width: 100%;
 }
 
 .sql-preview code {
