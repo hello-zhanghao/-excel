@@ -63,6 +63,7 @@ export function ChartCard({
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ECharts | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [mapFullscreen, setMapFullscreen] = useState(false)
   const [result, setResult] = useState<any>(null)
 
   const catalog = useStore((s) => s.catalog)
@@ -369,15 +370,24 @@ export function ChartCard({
 
       {/* 图表区 */}
       <div className="chart-card-body">
-        {isMapReady ? (
-          <LeafletMap rows={rows} config={mapConfig!} />
-        ) : (
+        {isMapReady && !mapFullscreen ? (
+          <>
+            <LeafletMap rows={rows} config={mapConfig!} />
+            <button
+              className="map-fullscreen-btn"
+              title="全屏"
+              onClick={() => setMapFullscreen(true)}
+            >
+              ⛶
+            </button>
+          </>
+        ) : !isMapReady ? (
           <div
             ref={containerRef}
             className="chart-card-canvas"
             style={{ width: '100%', height: '100%' }}
           />
-        )}
+        ) : null}
         {!result || result.rows.length === 0 ? (
           <div className="chart-empty">
             <div>展开卡片，{chartType === 'map' ? '选择经度和纬度字段' : '下拉选择 X 轴和 Y 轴字段'}</div>
@@ -389,6 +399,22 @@ export function ChartCard({
           </div>
         ) : null}
       </div>
+
+      {/* 地图全屏覆盖层 */}
+      {isMapReady && mapFullscreen && (
+        <div className="map-fullscreen">
+          <div className="map-fullscreen-bar">
+            <span className="title">{title || '地图'}</span>
+            <div style={{ flex: 1 }} />
+            <button className="card-btn danger" onClick={() => setMapFullscreen(false)}>
+              退出全屏
+            </button>
+          </div>
+          <div className="map-fullscreen-canvas">
+            <LeafletMap rows={rows} config={mapConfig!} />
+          </div>
+        </div>
+      )}
 
       {expanded && result && result.rows.length > 0 && (
         <div className="sql-preview">
