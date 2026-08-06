@@ -1,27 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart, ScatterChart, MapChart } from 'echarts/charts'
+import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import {
   GridComponent,
   TooltipComponent,
   LegendComponent,
-  GeoComponent,
-  VisualMapComponent,
 } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts } from 'echarts/core'
 import type { DashboardYField, DashboardMapConfig } from '@/types'
 import { useStore } from '@/store/useStore'
-import { queryDashboard, generateDashboardOption, generateDashboardMapOption, defaultAggregation } from '@/lib/dashboardEngine'
-import { CHINA_GEOJSON } from '@/data/chinaGeo'
+import { queryDashboard, generateDashboardOption, defaultAggregation } from '@/lib/dashboardEngine'
+import { LeafletMap } from './LeafletMap'
 
 // 按需注册 ECharts 模块
 echarts.use([
-  BarChart, LineChart, PieChart, ScatterChart, MapChart,
-  GridComponent, TooltipComponent, LegendComponent, GeoComponent, VisualMapComponent,
+  BarChart, LineChart, PieChart, ScatterChart,
+  GridComponent, TooltipComponent, LegendComponent,
   CanvasRenderer,
 ])
-echarts.registerMap('china', CHINA_GEOJSON as any)
 
 const AGG_OPTIONS: { value: DashboardYField['aggregation']; label: string }[] = [
   { value: 'sum', label: '求和 SUM' },
@@ -73,8 +70,18 @@ export function ChartCard({
   const fields = table?.fields ?? []
   const rows = table?.rows ?? []
 
-  // 初始化 / 销毁 ECharts 实例
+  const isMap = chartType === 'map'
+  const isMapReady = isMap && !!(mapConfig?.lonField && mapConfig?.latField)
+
+  // 初始化 / 销毁 ECharts 实例（仅组合图模式需要）
   useEffect(() => {
+    if (isMap) {
+      if (chartRef.current) {
+        chartRef.current.dispose()
+        chartRef.current = null
+      }
+      return
+    }
     if (!containerRef.current) return
     const chart = echarts.init(containerRef.current)
     chartRef.current = chart
@@ -85,28 +92,20 @@ export function ChartCard({
       chart.dispose()
       chartRef.current = null
     }
-  }, [])
+  }, [isMap])
 
   // 当数据源 / 图表类型 / 字段变化时自动查询并重绘
   useEffect(() => {
     const chart = chartRef.current
+
+    // 地图模式：交由 LeafletMap 渲染
+    if (isMap) {
+      setResult(isMapReady ? { rows, map: true } : null)
+      return
+    }
     if (!table) {
       setResult(null)
       if (chart) chart.clear()
-      return
-    }
-
-    // 地图模式
-    if (chartType === 'map') {
-      const mc = mapConfig
-      if (mc && mc.lonField && mc.latField) {
-        const option = generateDashboardMapOption(mc, rows)
-        setResult({ rows, map: true })
-        if (chart) chart.setOption(option, true)
-      } else {
-        setResult(null)
-        if (chart) chart.clear()
-      }
       return
     }
 
@@ -357,17 +356,21 @@ export function ChartCard({
 
       {/* 图表区 */}
       <div className="chart-card-body">
-        <div
-          ref={containerRef}
-          className="chart-card-canvas"
-          style={{ width: '100%', height: '100%' }}
-        />
+        {isMapReady ? (
+          <LeafletMap rows={rows} config={mapConfig!} />
+        ) : (
+          <div
+            ref={containerRef}
+            className="chart-card-canvas"
+            style={{ width: '100%', height: '100%' }}
+          />
+        )}
         {!result || result.rows.length === 0 ? (
           <div className="chart-empty">
             <div>展开卡片，{chartType === 'map' ? '选择经度和纬度字段' : '下拉选择 X 轴和 Y 轴字段'}</div>
             <div className="hint">
               {chartType === 'map'
-                ? '选择含经纬度的数据源，配置经度/纬度即可在地图上打点'
+                ? '选择含经纬度的数据源，配置经度/纬度即可在 OpenStreetMap 上打点'
                 : 'X 轴可选多个字段，Y 轴每个字段可独立设置柱状图或折线图'}
             </div>
           </div>
