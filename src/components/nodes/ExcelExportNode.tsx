@@ -60,7 +60,7 @@ export function ExcelExportNode({ id, data, selected }: NodeProps<PipelineNode>)
   return (
     <BaseNode
       icon="⤓"
-      title="导出 Excel"
+      title={config.filename && config.filename.trim() !== '' ? config.filename : '导出 Excel'}
       color={EXPORT_COLOR}
       status={status}
       selected={selected}

@@ -103,6 +103,12 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
     })
   }
 
+  const handleMeasureAlias = (index: number, alias: string) => {
+    update({
+      measures: measures.map((m, i) => (i === index ? { ...m, alias } : m)),
+    })
+  }
+
   return (
     <BaseNode
       icon="📊"
@@ -270,6 +276,14 @@ export function AggregateNode({ id, data, selected }: NodeProps<PipelineNode>) {
                 </option>
               ))}
             </select>
+            <input
+              type="text"
+              value={measure.alias ?? ''}
+              placeholder={`结果名（可选，默认 ${measure.aggregation}_${measure.field || '字段'}）`}
+              onChange={(e) => handleMeasureAlias(i, e.target.value)}
+              style={{ ...nodeInputStyle, fontSize: 11 }}
+              className="nodrag"
+            />
           </div>
         ))}
 
