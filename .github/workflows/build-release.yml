@@ -45,25 +45,29 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          npx electron-builder --win --publish never *>> build.log 2>&1
+          npx electron-builder --win --publish never 2>&1 | Tee-Object -FilePath eb.log
           echo "pkg_exit=$LASTEXITCODE"
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - name: Surface build log to annotations
-        if: always() && (steps.web.outcome == 'failure' || steps.pkg.outcome == 'failure')
+      - name: Surface electron-builder log to annotations
+        if: always() && steps.pkg.outcome == 'failure'
         shell: pwsh
         run: |
-          if (-not (Test-Path build.log)) { echo "::error::no build.log produced"; exit 0 }
-          $lines = Get-Content build.log | Select-Object -Last 100
-          foreach ($l in $lines) { echo "::error::$l" }
-          echo "::error::=== END OF LOG ==="
+          if (Test-Path eb.log) {
+            echo "::error::=== electron-builder log (last 120 lines) ==="
+            $lines = Get-Content eb.log | Select-Object -Last 120
+            foreach ($l in $lines) { echo "::error::$l" }
+            echo "::error::=== END ==="
+          } else {
+            echo "::error::no eb.log produced"
+          }
 
-      - name: Upload build log
-        if: always() && (steps.web.outcome == 'failure' || steps.pkg.outcome == 'failure')
+      - name: Upload electron-builder log
+        if: always() && steps.pkg.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: build-log
-          path: build.log
+          name: eb-log
+          path: eb.log
           if-no-files-found: ignore
 
       - name: Upload build artifacts
