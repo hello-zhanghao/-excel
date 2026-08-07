@@ -8,8 +8,6 @@ on:
 permissions:
   contents: write
 
-# electron-builder 在 CI 中需要下载 Electron 二进制与打包工具，
-# 使用国内镜像源显著提升下载稳定性（GitHub 官方源偶发超时/403）
 env:
   ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
   ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
@@ -29,15 +27,47 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # 使用官方 registry，确保 duckdb 原生模块可获取
         run: npm ci --registry=https://registry.npmjs.org
 
-      - name: Build & package (Windows)
-        run: npm run build:electron && npx electron-builder --win --publish never
+      # 分步执行并把完整输出写入日志文件，失败时通过 ::error:: 上报到运行摘要，
+      # 便于在 Actions 页面直接看到真正的报错原因
+      - name: Build web & electron
+        id: web
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          npm run build:electron *> build.log 2>&1
+          echo "web_exit=$LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      # 即便 Release 上传失败，也保留安装包作为工作流产物，便于手动下载
+      - name: Package installer (electron-builder)
+        id: pkg
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          npx electron-builder --win --publish never *>> build.log 2>&1
+          echo "pkg_exit=$LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Surface build log to annotations
+        if: always() && (steps.web.outcome == 'failure' || steps.pkg.outcome == 'failure')
+        shell: pwsh
+        run: |
+          if (-not (Test-Path build.log)) { echo "::error::no build.log produced"; exit 0 }
+          $lines = Get-Content build.log | Select-Object -Last 100
+          foreach ($l in $lines) { echo "::error::$l" }
+          echo "::error::=== END OF LOG ==="
+
+      - name: Upload build log
+        if: always() && (steps.web.outcome == 'failure' || steps.pkg.outcome == 'failure')
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
+
       - name: Upload build artifacts
-        if: always()
+        if: always() && steps.pkg.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: windows-installers
@@ -48,8 +78,8 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload installer to Release
+        if: steps.pkg.outcome == 'success'
         uses: softprops/action-gh-release@v2
-        if: success()
         with:
           files: |
             release/*.exe
