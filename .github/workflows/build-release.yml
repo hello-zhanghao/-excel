@@ -1,0 +1,38 @@
+name: Build Desktop Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-win:
+    name: Build Windows installer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        # 使用官方 registry，确保 duckdb 原生模块可获取
+        run: npm ci --registry=https://registry.npmjs.org
+
+      - name: Build & package (Windows)
+        run: npm run build:electron && npx electron-builder --win --publish never
+
+      - name: Upload installer to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.yml
+          generate_release_notes: true

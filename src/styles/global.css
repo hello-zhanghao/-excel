@@ -179,6 +179,102 @@ body {
 .field-group-title .dot.dimension { background: var(--dimension); }
 .field-group-title .dot.measure { background: var(--measure); }
 
+/* ---- 数据源概览（只读侧边栏） ---- */
+.ds-overview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ds-overview-header:hover {
+  background: var(--surface-muted);
+}
+
+.ds-caret {
+  font-size: 10px;
+  color: var(--text-light);
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.ds-caret.open {
+  transform: rotate(90deg);
+}
+
+.ds-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-meta {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.ds-overview-fields {
+  padding: 4px 0 6px 8px;
+}
+
+.ds-field-group {
+  margin-bottom: 8px;
+}
+
+.ds-field-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.ds-field-item:hover {
+  background: var(--surface-muted);
+}
+
+.ds-field-item .field-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ds-field-item .field-icon.dimension { background: var(--dimension); }
+.ds-field-item .field-icon.measure { background: var(--measure); }
+
+.ds-field-item .field-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ds-field-item .field-type {
+  font-size: 10px;
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.ds-empty-fields {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--text-light);
+}
+
 .field-item {
   display: flex;
   align-items: center;
@@ -548,6 +644,14 @@ body {
   overflow: hidden;
 }
 
+/* 仪表盘主体：网格 + 右侧配置栏 水平并排 */
+.dashboard-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
 .dashboard-toolbar {
   display: flex;
   align-items: center;
@@ -591,14 +695,14 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
-  align-content: start;
+  align-content: flex-start;
 }
 
 .dashboard-empty {
-  grid-column: 1 / -1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -630,6 +734,29 @@ body {
   flex-direction: column;
   overflow: hidden;
   min-height: 300px;
+  width: 360px;
+  height: 320px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 右下角拖拽调整大小手柄 */
+.card-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 10;
+  background-image: linear-gradient(135deg, transparent 50%, var(--text-light) 50%, var(--text-light) 55%, transparent 55%);
+  border-bottom-right-radius: var(--radius-lg);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.card-resize-handle:hover {
+  opacity: 1;
 }
 
 .chart-card-header {
@@ -876,6 +1003,32 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+}
+
+.cfg-row + .cfg-row {
+  margin-top: 10px;
+}
+
+.cfg-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.cfg-input:focus {
+  border-color: var(--brand);
+}
+
+.cfg-input::placeholder {
+  color: var(--text-light);
 }
 
 .cfg-row-y {
@@ -1452,6 +1605,23 @@ body {
   font-size: 11px;
   color: var(--text-light);
   line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.mode-card .download-link {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 6px;
+  background: var(--brand);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.mode-card .download-link:hover {
+  background: var(--brand-dark);
 }
 
 .mode-card .active-tag {

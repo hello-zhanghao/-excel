@@ -107,6 +107,17 @@ export default function App() {
         </div>
 
         <div className="spacer" />
+        {env === 'web' && (
+          <a
+            className="btn-open"
+            href="https://github.com/hello-zhanghao/-excel/releases/latest"
+            target="_blank"
+            rel="noreferrer"
+            title="下载桌面版，免安装网页环境，支持百万级大数据"
+          >
+            ⬇ 下载桌面版
+          </a>
+        )}
         {loaded && appMode === 'visualize' && (
           <button className="btn-open" onClick={handleOpenFile}>
             打开文件
@@ -163,6 +174,16 @@ export default function App() {
                 支持百万级大数据<br />
                 原生文件系统访问
               </div>
+              {env === 'web' && (
+                <a
+                  className="download-link"
+                  href="https://github.com/hello-zhanghao/-excel/releases/latest"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  ⬇ 下载桌面版
+                </a>
+              )}
             </div>
           </div>
 
