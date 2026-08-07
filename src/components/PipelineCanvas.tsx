@@ -171,8 +171,20 @@ function getNodeId(): string {
 
 function PipelineCanvasInner() {
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  // 节点/边状态提升到全局 store，切换模式（可视化↔数据流）时画布不丢失
+  const pipelineNodes = useStore((s) => s.pipelineNodes)
+  const pipelineEdges = useStore((s) => s.pipelineEdges)
+  const setPipelineNodes = useStore((s) => s.setPipelineNodes)
+  const setPipelineEdges = useStore((s) => s.setPipelineEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(pipelineNodes || [])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(pipelineEdges || [])
+  // 节点/边变化时同步回 store，保证切换模式后画布状态保留
+  useEffect(() => {
+    setPipelineNodes(nodes)
+  }, [nodes, setPipelineNodes])
+  useEffect(() => {
+    setPipelineEdges(edges)
+  }, [edges, setPipelineEdges])
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const { selectNode } = useNodeConfig()

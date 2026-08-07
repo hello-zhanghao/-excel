@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# electron-builder 在 CI 中需要下载 Electron 二进制与打包工具，
+# 使用国内镜像源显著提升下载稳定性（GitHub 官方源偶发超时/403）
+env:
+  ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
+
 jobs:
   build-win:
     name: Build Windows installer
@@ -29,10 +35,24 @@ jobs:
       - name: Build & package (Windows)
         run: npm run build:electron && npx electron-builder --win --publish never
 
+      # 即便 Release 上传失败，也保留安装包作为工作流产物，便于手动下载
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: |
+            release/*.exe
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: warn
+
       - name: Upload installer to Release
         uses: softprops/action-gh-release@v2
+        if: success()
         with:
           files: |
             release/*.exe
             release/*.yml
+            release/*.blockmap
           generate_release_notes: true

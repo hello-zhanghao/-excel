@@ -64,8 +64,25 @@ export function LeafletMap({ rows, config }: LeafletMapProps) {
     // 容器尺寸可能尚未就绪，下一个帧再校正一次
     const raf = requestAnimationFrame(() => map.invalidateSize())
 
+    // 容器尺寸变化（拖拽拉伸卡片等）时同步校正地图视口，避免地图跳动/缩放异常
+    let ro: ResizeObserver | null = null
+    let debounceTimer: number | null = null
+    if (window.ResizeObserver && containerRef.current) {
+      ro = new ResizeObserver(() => {
+        // 防抖：连续 resize 时只在校正空闲后 invalidate，避免拖拽过程中地图抖动
+        if (debounceTimer) window.clearTimeout(debounceTimer)
+        debounceTimer = window.setTimeout(() => {
+          map.invalidateSize()
+          debounceTimer = null
+        }, 60)
+      })
+      ro.observe(containerRef.current)
+    }
+
     return () => {
       cancelAnimationFrame(raf)
+      if (debounceTimer) window.clearTimeout(debounceTimer)
+      if (ro) ro.disconnect()
       map.remove()
       mapRef.current = null
       layerRef.current = null

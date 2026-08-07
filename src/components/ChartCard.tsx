@@ -10,7 +10,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import type { ECharts } from 'echarts/core'
 import type { DashboardYField, DashboardMapConfig } from '@/types'
 import { useStore } from '@/store/useStore'
-import { queryDashboard, generateDashboardOption, defaultAggregation } from '@/lib/dashboardEngine'
+import { queryDashboard, generateDashboardOption } from '@/lib/dashboardEngine'
 import { LeafletMap } from './LeafletMap'
 
 // 按需注册 ECharts 模块
@@ -20,21 +20,6 @@ echarts.use([
   CanvasRenderer,
 ])
 
-const AGG_OPTIONS: { value: DashboardYField['aggregation']; label: string }[] = [
-  { value: 'sum', label: '求和 SUM' },
-  { value: 'avg', label: '平均 AVG' },
-  { value: 'count', label: '计数 COUNT' },
-  { value: 'min', label: '最小 MIN' },
-  { value: 'max', label: '最大 MAX' },
-  { value: 'count_distinct', label: '去重 DISTINCT' },
-]
-
-const TYPE_OPTIONS: { value: DashboardYField['chartType']; label: string }[] = [
-  { value: 'bar', label: '柱状图' },
-  { value: 'line', label: '折线图' },
-  { value: 'area', label: '面积图' },
-]
-
 interface ChartCardProps {
   id: string
   title: string
@@ -43,38 +28,39 @@ interface ChartCardProps {
   mapConfig?: DashboardMapConfig
   xFields: string[]
   yFields: DashboardYField[]
-  onTitleChange: (title: string) => void
-  onDataSourceChange: (key: string) => void
-  onChartTypeChange: (type: 'combo' | 'map') => void
-  onMapConfigChange: (config: DashboardMapConfig) => void
-  onXFieldsChange: (fields: string[]) => void
-  onYFieldsChange: (fields: DashboardYField[]) => void
+  /** 当前是否被选中（在右侧栏显示配置） */
+  selected: boolean
+  /** 自定义大小（缺省时网格自适应） */
+  size?: { w?: number; h?: number }
+  onSelect: () => void
   onRemove: () => void
+  /** 拖动右下角调整大小 */
+  onResize?: (size: { w?: number; h?: number }) => void
 }
 
 /**
- * 仪表盘图表卡片 —— 独立数据源、组合图（多X多Y）或地图
+ * 仪表盘图表卡片 —— 独立数据源、组合图（多X多Y）或地图。
+ * 卡片本身只负责渲染图表；配置在右侧栏（ChartCardConfig）中编辑。
  */
 export function ChartCard({
   id, title, dataSource, chartType, mapConfig, xFields, yFields,
-  onTitleChange, onDataSourceChange, onChartTypeChange, onMapConfigChange,
-  onXFieldsChange, onYFieldsChange, onRemove,
+  selected, size, onSelect, onRemove, onResize,
 }: ChartCardProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ECharts | null>(null)
-  const [expanded, setExpanded] = useState(false)
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const [result, setResult] = useState<any>(null)
+  const resizeRef = useRef<{ startX: number; startY: number; startW: number; startH: number } | null>(null)
 
   const catalog = useStore((s) => s.catalog)
   const table = catalog.find((c) => c.key === dataSource)
-  const fields = table?.fields ?? []
   const rows = table?.rows ?? []
 
   const isMap = chartType === 'map'
   const isMapReady = isMap && !!(mapConfig?.lonField && mapConfig?.latField)
 
-  // 初始化 / 销毁 ECharts 实例（仅组合图模式需要）
+  // 初始化 / 销毁 ECharts 实例，并监听容器尺寸变化以便卡片缩放后自适应重绘
   useEffect(() => {
     if (isMap) {
       if (chartRef.current) {
@@ -88,8 +74,14 @@ export function ChartCard({
     chartRef.current = chart
     const handleResize = () => chart.resize()
     window.addEventListener('resize', handleResize)
+    // ResizeObserver：卡片被拖拽缩放时同步重绘
+    const ro = window.ResizeObserver
+      ? new ResizeObserver(() => chart.resize())
+      : null
+    if (ro) ro.observe(containerRef.current)
     return () => {
       window.removeEventListener('resize', handleResize)
+      if (ro) ro.disconnect()
       chart.dispose()
       chartRef.current = null
     }
@@ -127,245 +119,59 @@ export function ChartCard({
     chart.setOption(option, true)
   }, [dataSource, chartType, mapConfig, xFields, yFields, table, rows])
 
-  // 已选 X 字段集合（用于下拉过滤）
-  const availableXFields = fields.filter((f) => !xFields.includes(f.name))
-  const availableYFields = fields.filter((f) => !yFields.some((y) => y.field === f.name))
-
-  const addXField = (name: string) => {
-    if (!name || xFields.includes(name)) return
-    onXFieldsChange([...xFields, name])
-  }
-
-  const addYField = (name: string) => {
-    if (!name || yFields.some((y) => y.field === name)) return
-    const yf: DashboardYField = {
-      id: `y_${id}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-      field: name,
-      aggregation: defaultAggregation(fields, name),
-      chartType: 'bar',
+  // 右下角拖拽调整卡片大小
+  const onResizeStart = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    // 用卡片根元素自身尺寸作为拖拽起点（地图模式下 containerRef 不渲染，不能依赖它）
+    const startW = cardRef.current?.clientWidth ?? 360
+    const startH = cardRef.current?.clientHeight ?? 300
+    resizeRef.current = { startX: e.clientX, startY: e.clientY, startW, startH }
+    document.body.style.cursor = 'nwse-resize'
+    document.body.style.userSelect = 'none'
+    const onMove = (ev: MouseEvent) => {
+      const r = resizeRef.current
+      if (!r) return
+      ev.stopPropagation()
+      onResize?.({
+        w: Math.max(280, r.startW + (ev.clientX - r.startX)),
+        h: Math.max(200, r.startH + (ev.clientY - r.startY)),
+      })
     }
-    onYFieldsChange([...yFields, yf])
-  }
-
-  const patchYField = (yId: string, patch: Partial<DashboardYField>) => {
-    onYFieldsChange(yFields.map((y) => (y.id === yId ? { ...y, ...patch } : y)))
-  }
-
-  const removeYField = (yId: string) => {
-    onYFieldsChange(yFields.filter((y) => y.id !== yId))
-  }
-
-  const patchMapConfig = (patch: Partial<DashboardMapConfig>) => {
-    onMapConfigChange({ ...(mapConfig ?? { lonField: '', latField: '' }), ...patch })
+    const onUp = () => {
+      resizeRef.current = null
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }
 
   return (
-    <div className="chart-card">
+    <div
+      ref={cardRef}
+      className={`chart-card${selected ? ' selected' : ''}`}
+      onClick={onSelect}
+      title="点击在右侧栏编辑该卡片"
+      style={size?.w || size?.h
+        ? { width: size.w ?? undefined, height: size.h ?? undefined }
+        : undefined}
+    >
       <div className="chart-card-header">
-        <input
-          className="chart-card-title"
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder="图表标题"
-        />
-        <div className="chart-card-actions">
-          <button
-            className={`card-btn ${expanded ? 'active' : ''}`}
-            title={expanded ? '收起配置' : '展开配置'}
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? '▲' : '▼'}
-          </button>
-          <button className="card-btn danger" title="删除卡片" onClick={onRemove}>
-            ×
-          </button>
-        </div>
-      </div>
-
-      {/* 配置区（默认收起） */}
-      <div className={`chart-card-config ${expanded ? 'open' : ''}`}>
-        {/* 数据源选择 */}
-        <div className="cfg-row">
-          <label className="cfg-label">数据源</label>
-          <select
-            className="cfg-select"
-            value={dataSource}
-            onChange={(e) => onDataSourceChange(e.target.value)}
-          >
-            {catalog.map((c) => (
-              <option key={c.key} value={c.key}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* 图表类型 */}
-        <div className="cfg-row">
-          <label className="cfg-label">类型</label>
-          <div className="cfg-seg">
-            <button
-              className={`seg-btn ${chartType === 'combo' ? 'active' : ''}`}
-              onClick={() => onChartTypeChange('combo')}
-            >
-              组合图
-            </button>
-            <button
-              className={`seg-btn ${chartType === 'map' ? 'active' : ''}`}
-              onClick={() => onChartTypeChange('map')}
-            >
-              地图
-            </button>
-          </div>
-        </div>
-
-        {chartType === 'combo' ? (
-          <>
-            {/* X 轴多选 */}
-            <div className="cfg-row">
-              <label className="cfg-label">X 轴</label>
-              <div className="cfg-multi">
-                {xFields.map((f) => (
-                  <span key={f} className="tag">
-                    {f}
-                    <span
-                      className="tag-remove"
-                      onClick={() => onXFieldsChange(xFields.filter((x) => x !== f))}
-                    >
-                      ×
-                    </span>
-                  </span>
-                ))}
-                <select
-                  className="cfg-select cfg-add"
-                  value=""
-                  onChange={(e) => addXField(e.target.value)}
-                >
-                  <option value="">+ 添加 X 字段</option>
-                  {availableXFields.map((f) => (
-                    <option key={f.name} value={f.name}>{f.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Y 轴多选（每个独立聚合 + 图表类型） */}
-            <div className="cfg-row cfg-row-y">
-              <label className="cfg-label">Y 轴</label>
-              <div className="cfg-y-list">
-                {yFields.map((y) => (
-                  <div className="cfg-y-item" key={y.id}>
-                    <select
-                      className="cfg-select"
-                      value={y.field}
-                      onChange={(e) => patchYField(y.id, { field: e.target.value })}
-                    >
-                      {fields.map((f) => (
-                        <option key={f.name} value={f.name}>{f.name}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="cfg-select cfg-agg"
-                      value={y.aggregation}
-                      onChange={(e) => patchYField(y.id, { aggregation: e.target.value as DashboardYField['aggregation'] })}
-                    >
-                      {AGG_OPTIONS.map((a) => (
-                        <option key={a.value} value={a.value}>{a.label}</option>
-                      ))}
-                    </select>
-                    <select
-                      className="cfg-select cfg-type"
-                      value={y.chartType}
-                      onChange={(e) => patchYField(y.id, { chartType: e.target.value as DashboardYField['chartType'] })}
-                    >
-                      {TYPE_OPTIONS.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                    <button className="cfg-remove" onClick={() => removeYField(y.id)}>×</button>
-                  </div>
-                ))}
-                <select
-                  className="cfg-select cfg-add"
-                  value=""
-                  onChange={(e) => addYField(e.target.value)}
-                >
-                  <option value="">+ 添加 Y 字段</option>
-                  {availableYFields.map((f) => (
-                    <option key={f.name} value={f.name}>{f.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* 地图配置：经度 / 纬度 / 名称 / 大小 */}
-            <div className="cfg-row">
-              <label className="cfg-label">经度</label>
-              <select
-                className="cfg-select"
-                value={mapConfig?.lonField ?? ''}
-                onChange={(e) => patchMapConfig({ lonField: e.target.value })}
-              >
-                <option value="">请选择经度字段</option>
-                {fields.map((f) => (
-                  <option key={f.name} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="cfg-row">
-              <label className="cfg-label">纬度</label>
-              <select
-                className="cfg-select"
-                value={mapConfig?.latField ?? ''}
-                onChange={(e) => patchMapConfig({ latField: e.target.value })}
-              >
-                <option value="">请选择纬度字段</option>
-                {fields.map((f) => (
-                  <option key={f.name} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="cfg-row">
-              <label className="cfg-label">名称</label>
-              <select
-                className="cfg-select"
-                value={mapConfig?.nameField ?? ''}
-                onChange={(e) => patchMapConfig({ nameField: e.target.value || undefined })}
-              >
-                <option value="">（可选）气泡名称</option>
-                {fields.map((f) => (
-                  <option key={f.name} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="cfg-row">
-              <label className="cfg-label">大小</label>
-              <select
-                className="cfg-select"
-                value={mapConfig?.sizeField ?? ''}
-                onChange={(e) => patchMapConfig({ sizeField: e.target.value || undefined })}
-              >
-                <option value="">（可选）气泡大小</option>
-                {fields.map((f) => (
-                  <option key={f.name} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="cfg-row">
-              <label className="cfg-label">分类</label>
-              <select
-                className="cfg-select"
-                value={mapConfig?.colorField ?? ''}
-                onChange={(e) => patchMapConfig({ colorField: e.target.value || undefined })}
-              >
-                <option value="">（可选）按分类着色</option>
-                {fields.map((f) => (
-                  <option key={f.name} value={f.name}>{f.name}</option>
-                ))}
-              </select>
-            </div>
-          </>
-        )}
+        <span className="chart-card-title-text">{title || '未命名图表'}</span>
+        <div className="spacer" />
+        <button
+          className="card-btn danger"
+          title="删除卡片"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
+        >
+          ×
+        </button>
       </div>
 
       {/* 图表区 */}
@@ -376,7 +182,10 @@ export function ChartCard({
             <button
               className="map-fullscreen-btn"
               title="全屏"
-              onClick={() => setMapFullscreen(true)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setMapFullscreen(true)
+              }}
             >
               ⛶
             </button>
@@ -390,15 +199,28 @@ export function ChartCard({
         ) : null}
         {!result || result.rows.length === 0 ? (
           <div className="chart-empty">
-            <div>展开卡片，{chartType === 'map' ? '选择经度和纬度字段' : '下拉选择 X 轴和 Y 轴字段'}</div>
+            <div>{chartType === 'map' ? '选择经度和纬度字段' : '下拉选择 X 轴和 Y 轴字段'}</div>
             <div className="hint">
               {chartType === 'map'
-                ? '选择含经纬度的数据源，配置经度/纬度即可在 OpenStreetMap 上打点'
-                : 'X 轴可选多个字段，Y 轴每个字段可独立设置柱状图或折线图'}
+                ? '在右侧栏配置经度/纬度即可在 OpenStreetMap 上打点'
+                : '在右侧栏选择 X 轴、Y 轴字段并设置图表类型'}
             </div>
           </div>
         ) : null}
       </div>
+
+      {/* 数据摘要 */}
+      {result && result.rows.length > 0 && (
+        <div className="sql-preview">
+          <div className="label">
+            {chartType === 'map' ? (
+              <>数据源 {table?.name ?? dataSource} · 地图打点 {result.rows.length} 点</>
+            ) : (
+              <>数据源 {table?.name ?? dataSource} · {xFields.join(' / ') || '全部'} · {result.rows.length} 行</>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 地图全屏覆盖层 */}
       {isMapReady && mapFullscreen && (
@@ -416,17 +238,8 @@ export function ChartCard({
         </div>
       )}
 
-      {expanded && result && result.rows.length > 0 && (
-        <div className="sql-preview">
-          <div className="label">
-            {chartType === 'map' ? (
-              <>数据源 {table?.name ?? dataSource} · 地图打点 {result.rows.length} 点</>
-            ) : (
-              <>数据源 {table?.name ?? dataSource} · {xFields.join(' / ') || '全部'} · {result.rows.length} 行</>
-            )}
-          </div>
-        </div>
-      )}
+      {/* 右下角拖拽调整大小手柄 */}
+      <div className="card-resize-handle" onMouseDown={onResizeStart} title="拖拽调整大小" />
     </div>
   )
 }

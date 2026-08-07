@@ -125,6 +125,8 @@ export interface DashboardChart {
   xFields: string[]
   /** 多 Y 轴字段（每项独立聚合 + 图表类型） */
   yFields: DashboardYField[]
+  /** 卡片自定义大小（拖动右下角调整）；缺省时由网格自适应 */
+  size?: { w?: number; h?: number }
 }
 
 /**

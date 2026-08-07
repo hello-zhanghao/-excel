@@ -48,6 +48,10 @@ interface AppState {
   appMode: 'visualize' | 'pipeline'
   pipelineData: { rows: Record<string, any>[]; fields: FieldMeta[] } | null
 
+  // 流水线画布节点/边（提升到 store，切换模式不丢失）
+  pipelineNodes: any[]
+  pipelineEdges: any[]
+
   // 数据状态
   fields: FieldMeta[]
   tableName: string
@@ -89,6 +93,8 @@ interface AppState {
   selectField: (field: SelectedField | null) => void
   toggleSqlPreview: () => void
   setAppMode: (mode: 'visualize' | 'pipeline') => void
+  setPipelineNodes: (nodes: any[]) => void
+  setPipelineEdges: (edges: any[]) => void
   setPipelineData: (data: { rows: Record<string, any>[]; fields: FieldMeta[] }) => void
   addDashboardChart: () => void
   updateDashboardChart: (id: string, patch: Partial<DashboardChart>) => void
@@ -103,6 +109,8 @@ export const useStore = create<AppState>((set, get) => ({
   env: getEnv(),
   appMode: 'pipeline',
   pipelineData: null,
+  pipelineNodes: [],
+  pipelineEdges: [],
   fields: [],
   tableName: '',
   loaded: false,
@@ -288,6 +296,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectField: (field: SelectedField | null) => set({ selectedField: field }),
   toggleSqlPreview: () => set((s) => ({ sqlPreviewOpen: !s.sqlPreviewOpen })),
   setAppMode: (mode) => set({ appMode: mode }),
+  setPipelineNodes: (nodes) => set({ pipelineNodes: nodes }),
+  setPipelineEdges: (edges) => set({ pipelineEdges: edges }),
   setPipelineData: (data) => {
     // 将流水线输出注入数据源，供可视化模式使用
     const ds = getDataSource()
