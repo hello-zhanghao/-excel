@@ -40,13 +40,8 @@ jobs:
           echo "web_exit=$LASTEXITCODE"
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      # duckdb 是原生模块，electron-builder 需将其从源码重编译为 Electron ABI，
-      # 依赖 MSVC 编译工具链。默认 windows-latest 上 node-gyp 找不到 VS，需显式配置。
-      - name: Set up MSVC build environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
+      # duckdb 使用 N-API，编译产物是 ABI 稳定的，可直接在 Electron 中复用，
+      # 因此通过 package.json 的 npmRebuild:false 跳过原生模块重建，无需 MSVC/VS 编译链。
       - name: Package installer (electron-builder)
         id: pkg
         continue-on-error: true

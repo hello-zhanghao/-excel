@@ -55,6 +55,7 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "npmRebuild": false,
     "mac": {
       "category": "public.app-category.business",
       "target": [
