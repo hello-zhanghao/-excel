@@ -37,6 +37,9 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          # 自动启用 GitHub Pages（Source = GitHub Actions），无需手动在网页设置
+          enablement: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
