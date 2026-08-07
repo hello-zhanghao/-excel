@@ -187,6 +187,8 @@ export interface OutputConfig {
 export interface ExcelExportConfig {
   /** 导出文件名（不含扩展名），默认用节点标签 */
   filename?: string
+  /** 是否在文件名追加时间戳，默认 true */
+  addTimestamp?: boolean
 }
 
 /**

@@ -103,12 +103,15 @@ function exportNodeToExcel(
 
   const nodeConfig = (node.data?.config as any) ?? {}
   const customName = (nodeConfig.filename as string) || ''
-  const baseName = (
+  const addTimestamp = (nodeConfig.addTimestamp as boolean) ?? true
+  const base = (
     customName ||
     defaults?.label ||
     (node.data?.label as string) ||
     'export'
   ).slice(0, 25) || 'export'
+  const ts = addTimestamp ? `_${formatTimestamp()}` : ''
+  const baseName = `${base}${ts}`
 
   // 收集所有待导出的 sheet（多输入时每路一个，单输入时一个）
   const sheets: { name: string; rows: Record<string, any>[]; fields: any[] }[] =
@@ -152,7 +155,7 @@ function exportNodeToExcel(
 
   if (exportedCount === 0) return null
 
-  const filename = `${baseName}_${Date.now()}.xlsx`
+  const filename = `${baseName}.xlsx`
   XLSX.writeFile(wb, filename)
   return filename
 }
@@ -161,6 +164,13 @@ function exportNodeToExcel(
 function sanitizeSheetName(name: string): string {
   const cleaned = name.replace(/[\\/?*[\]:]/g, '_').slice(0, 31)
   return cleaned || 'Sheet'
+}
+
+/** 生成可读时间戳，如 20260807_152030 */
+function formatTimestamp(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
 }
 
 let nodeIdCounter = 0

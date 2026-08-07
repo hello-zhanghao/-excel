@@ -57,6 +57,10 @@ export function ExcelExportNode({ id, data, selected }: NodeProps<PipelineNode>)
     updateNodeData(id, { config: { ...config, filename: e.target.value } })
   }
 
+  const handleTimestampChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateNodeData(id, { config: { ...config, addTimestamp: e.target.checked } })
+  }
+
   return (
     <BaseNode
       icon="⤓"
@@ -85,6 +89,26 @@ export function ExcelExportNode({ id, data, selected }: NodeProps<PipelineNode>)
           style={nodeInputStyle}
           className="nodrag"
         />
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 11,
+            color: '#374151',
+            cursor: 'pointer',
+          }}
+          className="nodrag"
+        >
+          <input
+            type="checkbox"
+            checked={config.addTimestamp ?? true}
+            onChange={handleTimestampChange}
+            style={{ width: 14, height: 14, cursor: 'pointer' }}
+          />
+          文件名追加时间戳
+        </label>
 
         {hasPreview ? (
           <div
