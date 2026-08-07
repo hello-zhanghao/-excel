@@ -403,30 +403,44 @@ function PipelineCanvasInner() {
         }),
       )
 
-      // 找到 output 节点的结果，设为预览
-      const outputNode = nodes.find((n) => n.type === 'output')
-      if (outputNode) {
-        const output = results.get(outputNode.id)
-        if (output) {
+      // 找到所有 output 节点的结果，全部传给可视化（每个输出独立成一个数据源）
+      const outputNodes = nodes.filter((n) => n.type === 'output')
+      const outputs: { id?: string; name?: string; rows: Record<string, any>[]; fields: any[] }[] = []
+      if (outputNodes.length > 0) {
+        for (const on of outputNodes) {
+          const out = results.get(on.id)
+          if (out) {
+            outputs.push({
+              id: on.id,
+              name: ((on.data as any)?.config?.name as string) || ((on.data.label as string) || '输出'),
+              rows: out.rows,
+              fields: out.fields,
+            })
+          }
+        }
+        // 预览显示第一个输出
+        const firstNode = outputNodes[0]
+        const firstOut = results.get(firstNode.id)
+        if (firstOut) {
           setPreviewData({
-            rows: output.rows.slice(0, 50),
-            fields: output.fields,
-            nodeId: outputNode.id,
-            nodeLabel: (outputNode.data.label as string) || '输出',
-            rowCount: output.rows.length,
+            rows: firstOut.rows.slice(0, 50),
+            fields: firstOut.fields,
+            nodeId: firstNode.id,
+            nodeLabel: ((firstNode.data as any)?.config?.name as string) || ((firstNode.data.label as string) || '输出'),
+            rowCount: firstOut.rows.length,
           })
-          setSelectedOutputNodeId(outputNode.id)
-          // 将结果传给全局 store，供可视化使用
-          setPipelineData?.({
-            rows: output.rows,
-            fields: output.fields,
-          })
+          setSelectedOutputNodeId(firstNode.id)
         }
       } else {
         // 没有 output 节点，取最后一个节点的结果
         const lastNode = nodes[nodes.length - 1]
         const output = results.get(lastNode.id)
         if (output) {
+          outputs.push({
+            name: (lastNode.data.label as string) || '末节点',
+            rows: output.rows,
+            fields: output.fields,
+          })
           setPreviewData({
             rows: output.rows.slice(0, 50),
             fields: output.fields,
@@ -434,11 +448,10 @@ function PipelineCanvasInner() {
             nodeLabel: (lastNode.data.label as string) || '末节点',
             rowCount: output.rows.length,
           })
-          setPipelineData?.({
-            rows: output.rows,
-            fields: output.fields,
-          })
         }
+      }
+      if (outputs.length > 0) {
+        setPipelineData?.(outputs)
       }
 
       // 自动导出所有 excelExport 节点的数据为 Excel

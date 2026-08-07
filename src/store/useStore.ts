@@ -95,7 +95,7 @@ interface AppState {
   setAppMode: (mode: 'visualize' | 'pipeline') => void
   setPipelineNodes: (nodes: any[]) => void
   setPipelineEdges: (edges: any[]) => void
-  setPipelineData: (data: { rows: Record<string, any>[]; fields: FieldMeta[] }) => void
+  setPipelineData: (data: { id?: string; name?: string; rows: Record<string, any>[]; fields: FieldMeta[] }[]) => void
   addDashboardChart: () => void
   updateDashboardChart: (id: string, patch: Partial<DashboardChart>) => void
   removeDashboardChart: (id: string) => void
@@ -299,28 +299,44 @@ export const useStore = create<AppState>((set, get) => ({
   setPipelineNodes: (nodes) => set({ pipelineNodes: nodes }),
   setPipelineEdges: (edges) => set({ pipelineEdges: edges }),
   setPipelineData: (data) => {
-    // 将流水线输出注入数据源，供可视化模式使用
+    // 支持流水线多输出：每个 output 节点注册为一个独立数据源，供可视化任意选择
+    const list = Array.isArray(data) ? data : [data]
+    const first = list[0]
+    if (!first) return
     const ds = getDataSource()
-    ds.loadRows(data.rows, 'pipeline_output').then(() => {
-      const fields = data.fields.length > 0 ? data.fields : data.rows.length > 0
-        ? Object.keys(data.rows[0]).map((name) => ({
+    // 为每个输出生成目录条目（重跑时替换旧的流水线输出条目）
+    const entries = list.map((o, i) => {
+      const suffix = list.length > 1 ? ` ${i + 1}${o.name ? ` · ${o.name}` : ''}` : (o.name ? ` · ${o.name}` : '')
+      return {
+        key: `pipeline_output_${i}`,
+        name: `流水线输出${suffix}`,
+        rows: o.rows,
+        fields: o.fields,
+      }
+    })
+    const catalog = get().catalog.filter((c) => !(c.key as string).startsWith('pipeline_output'))
+    entries.forEach((e) => catalog.push({ key: e.key, name: e.name, rows: e.rows, fields: e.fields }))
+    set({ catalog })
+    const firstKey = entries[0].key
+    // 将第一个输出注入数据源，供可视化默认使用
+    ds.loadRows(first.rows, firstKey).then(() => {
+      const fields = first.fields.length > 0 ? first.fields : first.rows.length > 0
+        ? Object.keys(first.rows[0]).map((name) => ({
             name,
-            dataType: typeof data.rows[0][name] === 'number' ? 'number' as const : 'string' as const,
-            kind: typeof data.rows[0][name] === 'number' ? FieldKind.Measure : FieldKind.Dimension,
+            dataType: typeof first.rows[0][name] === 'number' ? 'number' as const : 'string' as const,
+            kind: typeof first.rows[0][name] === 'number' ? FieldKind.Measure : FieldKind.Dimension,
             sample: [],
           }))
         : []
       set({
-        pipelineData: data,
+        pipelineData: first,
         fields,
-        tableName: 'pipeline_output',
+        tableName: firstKey,
         loaded: true,
         encoding: {},
         queryResult: null,
         g2Spec: null,
       })
-      // 注册到仪表盘数据源目录
-      get().registerCatalog('pipeline_output', '流水线输出', data.rows, fields)
     }).catch((err: any) => {
       set({ error: err.message })
     })
