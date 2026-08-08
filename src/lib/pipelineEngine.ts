@@ -84,6 +84,7 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   union: '合并',
   output: '输出',
   excelExport: '导出',
+  pptExport: '导出 PPT',
 }
 
 function nodeTypeLabel(type: string | undefined): string {
@@ -735,6 +736,28 @@ export async function executeNode(
       })
 
       // 合并行用于画布预览（sheet 明细仍保留在 sheets 中）
+      return {
+        rows: sheets.flatMap((s) => s.rows),
+        fields: sheets[0]?.fields ?? inferFieldsSafe(inputData, inputData),
+        sheets,
+      }
+    }
+    case 'pptExport': {
+      // PPT 导出节点：与 excelExport 一致，保留各上游输出为独立数据区块（sheet）
+      const inputs = allInputs && allInputs.length > 0 ? allInputs : [inputData]
+      const srcNodes = sourceNodes && sourceNodes.length > 0 ? sourceNodes : []
+
+      const sheets = inputs.map((rows, i) => {
+        const srcNode = srcNodes[i]
+        const label = (srcNode?.data?.label as string) || nodeTypeLabel(srcNode?.type) || `输入${i + 1}`
+        const fields = inferFieldsSafe(rows, rows)
+        return {
+          name: label,
+          rows: rows.map((r) => ({ ...r })),
+          fields,
+        }
+      })
+
       return {
         rows: sheets.flatMap((s) => s.rows),
         fields: sheets[0]?.fields ?? inferFieldsSafe(inputData, inputData),

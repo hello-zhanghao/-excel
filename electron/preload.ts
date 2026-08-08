@@ -26,4 +26,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 获取应用版本信息
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+
+  // 选择 PPT 模板文件
+  openPptTemplate: () => ipcRenderer.invoke('ppt:openTemplate'),
+
+  // 生成 PPT（调用本地 Python 模板填充引擎）
+  generatePpt: (request: any) => ipcRenderer.invoke('ppt:generate', request),
+
+  // 查询 PPT 模板填充引擎状态
+  pptEngineStatus: () => ipcRenderer.invoke('ppt:engineStatus'),
 })

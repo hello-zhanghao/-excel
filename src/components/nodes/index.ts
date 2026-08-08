@@ -21,6 +21,7 @@ export { JoinNode } from './JoinNode'
 export { UnionNode } from './UnionNode'
 export { OutputNode } from './OutputNode'
 export { ExcelExportNode } from './ExcelExportNode'
+export { PptExportNode } from './PptExportNode'
 
 import { DataSourceNode } from './DataSourceNode'
 import { FilterNode } from './FilterNode'
@@ -33,6 +34,7 @@ import { JoinNode } from './JoinNode'
 import { UnionNode } from './UnionNode'
 import { OutputNode } from './OutputNode'
 import { ExcelExportNode } from './ExcelExportNode'
+import { PptExportNode } from './PptExportNode'
 
 /**
  * React Flow 节点类型注册表
@@ -56,6 +58,7 @@ export const nodeTypes: NodeTypes = {
   union: UnionNode,
   output: OutputNode,
   excelExport: ExcelExportNode,
+  pptExport: PptExportNode,
 }
 
 export default nodeTypes

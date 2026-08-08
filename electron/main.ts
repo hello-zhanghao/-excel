@@ -2,6 +2,11 @@ import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import { DataService } from './dataService'
+import {
+  generatePpt,
+  resolveFillerDir,
+  type PptGenerateRequest,
+} from './pptService'
 
 let mainWindow: BrowserWindow | null = null
 const dataService = new DataService()
@@ -118,6 +123,40 @@ ipcMain.handle('app:getVersion', () => {
     chrome: process.versions.chrome,
     node: process.versions.node,
     platform: process.platform,
+  }
+})
+
+// IPC: 选择 PPT 模板文件
+ipcMain.handle('ppt:openTemplate', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    title: '选择 PPT 模板文件',
+    filters: [
+      { name: 'PPT 模板', extensions: ['pptx'] },
+      { name: '所有文件', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  })
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, canceled: true }
+  }
+  return {
+    success: true,
+    filePath: result.filePaths[0],
+    fileName: path.basename(result.filePaths[0]),
+  }
+})
+
+// IPC: 生成 PPT（调用本地 Python 模板填充引擎）
+ipcMain.handle('ppt:generate', async (_event, request: PptGenerateRequest) => {
+  return await generatePpt(request)
+})
+
+// IPC: 查询 PPT 模板填充引擎状态
+ipcMain.handle('ppt:engineStatus', () => {
+  const dir = resolveFillerDir()
+  return {
+    available: !!dir,
+    dir,
   }
 })
 

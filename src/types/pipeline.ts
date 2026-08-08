@@ -17,6 +17,7 @@ export type PipelineNodeType =
   | 'union'      // 合并：纵向堆叠多表行
   | 'output'     // 输出：透传结果
   | 'excelExport' // 导出 Excel：把上游数据导出为 .xlsx 文件
+  | 'pptExport'  // 导出 PPT：基于 PPT 模板 + 上游数据,替换生成 .pptx 文件
 
 /**
  * 过滤操作符
@@ -192,6 +193,33 @@ export interface ExcelExportConfig {
 }
 
 /**
+ * 导出 PPT 节点配置
+ *
+ * 基于一个 PPT 模板，把上游数据(每个上游作为模板的一个数据区块/sheet)
+ * 替换到模板占位符中，生成新的 .pptx。
+ *
+ * 执行引擎：
+ * - 桌面端：通过 Electron IPC 调用本地 Python(excel2ppt 的 template_filler) 真正替换
+ * - 网页端：仅配置与预览，实际替换需桌面端
+ */
+export interface PptExportConfig {
+  /** PPT 模板文件路径（桌面端选择；网页端通过上传获得） */
+  templatePath?: string
+  /** 模板文件名（展示用） */
+  templateName?: string
+  /** 输出文件名（不含扩展名），默认用节点标签 */
+  outputName?: string
+  /** 是否在文件名追加时间戳，默认 true */
+  addTimestamp?: boolean
+  /** 图片/数据搜索目录（桌面端，可选；用于模板中的图片占位符） */
+  imageDir?: string
+  /** 网页端上传的模板文件（cache），桌面端不设置 */
+  templateFile?: File
+  /** 是否标记缺失占位符，默认 true */
+  markMissing?: boolean
+}
+
+/**
  * 节点配置联合类型 —— 与节点 type 一一对应
  */
 export type NodeConfig =
@@ -206,6 +234,7 @@ export type NodeConfig =
   | UnionConfig
   | OutputConfig
   | ExcelExportConfig
+  | PptExportConfig
 
 /**
  * 流水线节点携带的数据

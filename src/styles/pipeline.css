@@ -1101,3 +1101,169 @@
   background: rgba(109, 92, 255, 0.12);
   color: var(--brand);
 }
+
+/* ----------------------------------------------------------
+   12. 一键替换数据源弹窗
+   ---------------------------------------------------------- */
+
+/* 弹窗宽度：比通用弹窗更宽，容纳节点↔文件两列 */
+.dsr-modal {
+  width: 720px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 主体：可滚动 */
+.dsr-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* 步骤区 */
+.dsr-step {
+  margin-bottom: 24px;
+}
+
+.dsr-step:last-child {
+  margin-bottom: 0;
+}
+
+.dsr-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text);
+}
+
+.dsr-match-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 空状态提示 */
+.dsr-empty {
+  padding: 18px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+/* 已选文件夹信息条 */
+.dsr-folder {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dsr-folder > span:first-child {
+  font-weight: 600;
+}
+
+.dsr-folder-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-right: auto;
+}
+
+/* 匹配结果表：两列（节点名 / 匹配文件下拉） */
+.dsr-table {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dsr-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.dsr-row:last-child {
+  border-bottom: none;
+}
+
+.dsr-row-head {
+  background: var(--surface-muted);
+  font-weight: 600;
+}
+
+.dsr-row > span {
+  padding: 10px 12px;
+  flex: 1;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.dsr-row select {
+  flex: 1.4;
+  margin: 6px 12px 6px 0;
+  min-width: 0;
+}
+
+.dsr-node-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dsr-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dsr-select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(109, 92, 255, 0.15);
+}
+
+/* 底部操作栏 */
+.dsr-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0 0 12px 12px;
+}
+
+/* 移动端适配：行内换行，文本可截断 */
+@media (max-width: 768px) {
+  .dsr-modal {
+    width: 95vw;
+  }
+
+  .dsr-row > span {
+    font-size: 12px;
+  }
+
+  .dsr-select {
+    font-size: 12px;
+  }
+}

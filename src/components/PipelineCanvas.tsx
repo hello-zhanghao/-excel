@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -24,9 +24,12 @@ import { executePipeline } from '@/lib/pipelineEngine'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
 import { inferFieldsFromRows } from '@/data/sampleDatasets'
 import type { PipelineNodeData, PipelineNodeType, NodeOutput } from '@/types/pipeline'
-import { useStore } from '@/store/useStore'
+import { useStore, parseFileToRows } from '@/store/useStore'
 import { TemplateManager } from '@/components/TemplateManager'
+import { DataSourceReplaceDialog, type ReplaceConfirmItem } from '@/components/DataSourceReplaceDialog'
+import type { DataSourceNodeInfo } from '@/lib/dataSourceMatcher'
 import * as XLSX from 'xlsx'
+import { generatePpt, toPptBlocks, isElectronEnv } from '@/lib/pptTemplateEngine'
 
 /** 组件面板中的可拖拽项 */
 const PALETTE_ITEMS: { type: PipelineNodeType; label: string; icon: string }[] = [
@@ -41,6 +44,7 @@ const PALETTE_ITEMS: { type: PipelineNodeType; label: string; icon: string }[] =
   { type: 'union', label: '合并', icon: '📋' },
   { type: 'output', label: '输出', icon: '🎯' },
   { type: 'excelExport', label: '导出 Excel', icon: '⤓' },
+  { type: 'pptExport', label: '导出 PPT', icon: '📽' },
 ]
 
 /** 各节点类型的默认配置 */
@@ -68,6 +72,8 @@ function getDefaultConfig(type: PipelineNodeType): Record<string, any> {
       return {}
     case 'excelExport':
       return { filename: '' }
+    case 'pptExport':
+      return { outputName: '', addTimestamp: true, markMissing: true }
     default:
       return {}
   }
@@ -86,6 +92,7 @@ const NODE_LABELS: Record<PipelineNodeType, string> = {
   union: '合并',
   output: '输出',
   excelExport: '导出 Excel',
+  pptExport: '导出 PPT',
 }
 
 /**
@@ -209,6 +216,7 @@ function PipelineCanvasInner() {
   } | null>(null)
   const [selectedOutputNodeId, setSelectedOutputNodeId] = useState<string | null>(null)
   const [showTemplateMgr, setShowTemplateMgr] = useState(false)
+  const [showReplaceDialog, setShowReplaceDialog] = useState(false)
 
   // ---- 面板布局：可拖拽调整大小 + 可折叠展开 ----
   const [paletteWidth, setPaletteWidth] = useState(170)
@@ -480,6 +488,76 @@ function PipelineCanvasInner() {
           setTimeout(() => setExportMsg(null), 5000)
         }
       }
+
+      // 自动导出所有 pptExport 节点的数据为 PPT（仅桌面端真正生成）
+      const pptNodes = nodes.filter((n) => n.type === 'pptExport')
+      if (pptNodes.length > 0) {
+        const pptNames: string[] = []
+        const pptMsgs: string[] = []
+        for (const pn of pptNodes) {
+          const out = results.get(pn.id)
+          if (!out || out.rows.length === 0) continue
+          const cfg = (pn.data?.config as any) ?? {}
+          const blocks = toPptBlocks(out)
+          const templatePath = cfg.templatePath as string | undefined
+          const templateFile = cfg.templateFile as File | undefined
+
+          if (!templatePath && !templateFile) {
+            pptMsgs.push(`「${pn.data?.label || '导出 PPT'}」未选择模板`)
+            continue
+          }
+
+          if (!isElectronEnv()) {
+            // 网页端不做真正替换，仅提示
+            pptMsgs.push(`「${pn.data?.label || '导出 PPT'}」需桌面版生成`)
+            continue
+          }
+
+          const res = await generatePpt({
+            templatePath,
+            outputName: (cfg.outputName as string) || (pn.data?.label as string) || '导出PPT',
+            addTimestamp: cfg.addTimestamp !== false,
+            markMissing: cfg.markMissing !== false,
+            blocks,
+          })
+
+          // 回写生成结果到节点 preview
+          setNodes((nds) =>
+            nds.map((n) =>
+              n.id === pn.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      status: res.success ? 'success' : 'error',
+                      preview: {
+                        ...((n.data as any).preview ?? {}),
+                        ppt: res.success
+                          ? { name: res.name, path: res.path }
+                          : undefined,
+                      },
+                      pptError: res.success ? undefined : res.error,
+                    },
+                  }
+                : n,
+            ),
+          )
+
+          if (res.success && res.name) {
+            pptNames.push(res.name)
+          } else {
+            pptMsgs.push(`「${pn.data?.label || '导出 PPT'}」${res.error || '生成失败'}`)
+          }
+        }
+
+        if (pptNames.length > 0) {
+          setExportMsg(`📽 已生成 ${pptNames.length} 个 PPT：${pptNames.join('、')}`)
+          setTimeout(() => setExportMsg(null), 6000)
+        } else if (pptMsgs.length > 0) {
+          setExportMsg(`📽 ${pptMsgs.join('；')}`)
+          setTimeout(() => setExportMsg(null), 6000)
+        }
+      }
     } catch (err: any) {
       setNodes((nds) =>
         nds.map((n) => ({ ...n, data: { ...n.data, status: 'error' as const } })),
@@ -507,6 +585,57 @@ function PipelineCanvasInner() {
       setTimeout(() => rfInstance?.fitView({ padding: 0.2 }), 100)
     },
     [setNodes, setEdges, rfInstance],
+  )
+
+  /** 收集画布上的数据源节点信息（用于一键替换匹配） */
+  const dataSourceNodes: DataSourceNodeInfo[] = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.type === 'dataSource')
+        .map((n) => {
+          const cfg = (n.data as any)?.config ?? {}
+          const fileName = cfg.fileName as string | undefined
+          const datasetId = cfg.datasetId as string | undefined
+          const dataset = SAMPLE_DATASETS.find((d) => d.id === datasetId)
+          const label = (n.data as any)?.label || '数据源'
+          const base = fileName
+            ? fileName.replace(/\.[^.]+$/, '')
+            : dataset
+              ? dataset.name
+              : label
+          const display = fileName ? fileName : dataset ? dataset.name : label
+          return { nodeId: n.id, matchKey: base, displayName: display }
+        }),
+    [nodes],
+  )
+
+  /** 一键替换：解析匹配到的文件并更新对应数据源节点配置 */
+  const handleReplaceDataSources = useCallback(
+    async (items: ReplaceConfirmItem[]) => {
+      const updates: { id: string; data: any }[] = []
+      for (const item of items) {
+        try {
+          const rows = await parseFileToRows(item.file)
+          if (rows.length === 0) continue
+          updates.push({
+            id: item.nodeId,
+            data: { config: { datasetId: '', fileName: item.file.name, rows } },
+          })
+        } catch (err: any) {
+          console.error('解析文件失败:', item.file.name, err)
+        }
+      }
+      if (updates.length > 0) {
+        setNodes((nds) =>
+          nds.map((n) => {
+            const up = updates.find((u) => u.id === n.id)
+            return up ? { ...n, data: { ...n.data, ...up.data } } : n
+          }),
+        )
+      }
+      setShowReplaceDialog(false)
+    },
+    [setNodes],
   )
 
   /** 快速搭建示例流水线：数据源 → 筛选 → 聚合 → 输出 */
@@ -827,6 +956,14 @@ function PipelineCanvasInner() {
           <button className="toolbar-btn tpl-toolbar-btn" onClick={() => setShowTemplateMgr(true)}>
             模板
           </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => setShowReplaceDialog(true)}
+            disabled={nodes.filter((n) => n.type === 'dataSource').length === 0}
+            title="选择一个文件夹，按名字自动匹配并替换所有数据源"
+          >
+            换数据源
+          </button>
           <div style={{ flex: 1 }} />
           <span style={{ fontSize: 11, color: 'var(--text-light)' }}>
             {nodes.length} 节点 · {edges.length} 连接
@@ -1011,6 +1148,15 @@ function PipelineCanvasInner() {
           edges={edges}
           onLoad={onLoadTemplate}
           onClose={() => setShowTemplateMgr(false)}
+        />
+      )}
+
+      {/* 一键替换数据源弹窗 */}
+      {showReplaceDialog && (
+        <DataSourceReplaceDialog
+          dataSourceNodes={dataSourceNodes}
+          onConfirm={handleReplaceDataSources}
+          onClose={() => setShowReplaceDialog(false)}
         />
       )}
     </div>
