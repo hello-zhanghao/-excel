@@ -22,11 +22,20 @@ for stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
-host = os.environ.get("ALIYUN_HOST", "")
-user = os.environ.get("ALIYUN_USER", "")
-pwd = os.environ.get("ALIYUN_PASS", "")
-remote_dir = os.environ.get("REMOTE_DIR", "/usr/share/nginx/html/downloads")
-release_dir = os.environ.get("RELEASE_DIR", "release")
+# 注意：GitHub 会把未配置的 Secret 替换成空字符串（而不是不设置）。
+# 因此这里把空字符串也视为“未设置”，避免 REMOTE_DIR 被空值覆盖导致默认值失效。
+def _env(name, default=""):
+    v = os.environ.get(name, "")
+    return v.strip() if v else default
+
+host = _env("ALIYUN_HOST")
+user = _env("ALIYUN_USER")
+pwd = _env("ALIYUN_PASS")
+remote_dir = _env("REMOTE_DIR", "/usr/share/nginx/html/downloads")
+release_dir = _env("RELEASE_DIR", "release")
+
+print(f"::debug::host={'<set>' if host else '<empty>'} user={'<set>' if user else '<empty>'} "
+      f"pwd={'<set>' if pwd else '<empty>'} remote_dir={remote_dir} release_dir={release_dir}")
 
 if not (host and user and pwd):
     print("::error::缺少 ALIYUN_HOST/ALIYUN_USER/ALIYUN_PASS，请检查仓库 Secrets 是否已正确配置")
