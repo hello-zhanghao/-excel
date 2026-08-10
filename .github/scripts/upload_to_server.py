@@ -48,22 +48,34 @@ try:
     client.connect(host, port=22, username=user, password=pwd, timeout=30,
                    allow_agent=False, look_for_keys=False)
 except Exception as ex:
-    print(f"::error::SSH 连接失败: {ex}")
+    print(f"::error::SSH 连接失败 ({host}@{user}): {ex}")
     sys.exit(1)
+print(f"已连接 {host}@{user}")
 
-# 用 SFTP 确认远端目录存在（不存在则创建），避免依赖服务器 shell 的 mkdir
 sftp = client.open_sftp()
-try:
-    sftp.stat(remote_dir)
-except FileNotFoundError:
-    try:
-        sftp.mkdir(remote_dir)
-        print(f"创建远端目录 {remote_dir} 成功")
-    except Exception as ex:
-        print(f"::error::创建远端目录失败: {ex}")
-        sftp.close()
-        client.close()
-        sys.exit(1)
+
+def ensure_dir(path):
+    """逐级递归创建远端目录，返回 True/False"""
+    parts = path.strip("/").split("/")
+    cur = ""
+    for p in parts:
+        cur = f"{cur}/{p}" if cur else f"/{p}"
+        try:
+            sftp.stat(cur)
+        except FileNotFoundError:
+            try:
+                sftp.mkdir(cur)
+            except Exception as ex:
+                print(f"::error::创建远端目录 {cur} 失败: {ex}")
+                return False
+    return True
+
+if not ensure_dir(remote_dir):
+    print("::error::无法创建远端目录，请确认 Secrets 中的 ALIYUN_USER 具有相应写权限（推荐使用 root）")
+    sftp.close()
+    client.close()
+    sys.exit(1)
+print(f"远端目录就绪: {remote_dir}")
 
 ok = 0
 for f in sorted(files):
