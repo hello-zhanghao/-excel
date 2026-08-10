@@ -14,6 +14,14 @@ import sys
 import glob
 import paramiko
 
+# Windows runner 默认 cp1252 编码，打印中文会抛 UnicodeEncodeError，强制 UTF-8。
+# （工作流里也设置了 PYTHONIOENCODING=utf-8，这里双保险）
+for stream in (sys.stdout, sys.stderr):
+    try:
+        stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 host = os.environ.get("ALIYUN_HOST", "")
 user = os.environ.get("ALIYUN_USER", "")
 pwd = os.environ.get("ALIYUN_PASS", "")
@@ -36,23 +44,27 @@ if not files:
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-client.connect(host, port=22, username=user, password=pwd, timeout=20,
-               allow_agent=False, look_for_keys=False)
-
-def run(cmd):
-    _, out, err = client.exec_command(cmd)
-    rc = out.channel.recv_exit_status()
-    o = out.read().decode("utf-8", "ignore").strip()
-    e = err.read().decode("utf-8", "ignore").strip()
-    return rc, o, e
-
-rc, o, e = run(f"mkdir -p {remote_dir}")
-if rc != 0:
-    print(f"::error::mkdir 失败: {e or o}")
-    client.close()
+try:
+    client.connect(host, port=22, username=user, password=pwd, timeout=30,
+                   allow_agent=False, look_for_keys=False)
+except Exception as ex:
+    print(f"::error::SSH 连接失败: {ex}")
     sys.exit(1)
 
+# 用 SFTP 确认远端目录存在（不存在则创建），避免依赖服务器 shell 的 mkdir
 sftp = client.open_sftp()
+try:
+    sftp.stat(remote_dir)
+except FileNotFoundError:
+    try:
+        sftp.mkdir(remote_dir)
+        print(f"创建远端目录 {remote_dir} 成功")
+    except Exception as ex:
+        print(f"::error::创建远端目录失败: {ex}")
+        sftp.close()
+        client.close()
+        sys.exit(1)
+
 ok = 0
 for f in sorted(files):
     name = os.path.basename(f)

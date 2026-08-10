@@ -122,6 +122,8 @@ jobs:
           ALIYUN_USER: ${{ secrets.ALIYUN_USER }}
           ALIYUN_PASS: ${{ secrets.ALIYUN_PASS }}
           REMOTE_DIR: ${{ secrets.ALIYUN_REMOTE_DIR }}
+          # Windows runner 默认 cp1252 编码，打印中文会抛 UnicodeEncodeError，强制 UTF-8
+          PYTHONIOENCODING: utf-8
         run: |
           python -m pip install --quiet paramiko
           python .github/scripts/upload_to_server.py
