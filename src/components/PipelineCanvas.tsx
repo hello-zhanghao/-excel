@@ -188,13 +188,20 @@ function getNodeId(): string {
 
 function PipelineCanvasInner() {
   const wrapperRef = useRef<HTMLDivElement>(null)
-  // 节点/边状态提升到全局 store，切换模式（可视化↔数据流）时画布不丢失
-  const pipelineNodes = useStore((s) => s.pipelineNodes)
-  const pipelineEdges = useStore((s) => s.pipelineEdges)
+  // 节点/边状态提升到全局 store，切换模式（可视化↔数据流）时画布不丢失。
+  //
+  // 注意：这里只做“一次性读取初始值”，绝不响应式订阅 pipelineNodes/pipelineEdges 的值。
+  // 若订阅值，拖动节点时每次位置变化都会同步回 store 并触发本组件重渲染，
+  // 与 React Flow 内部拖拽状态竞争，造成快速拖动时整个画布节点全部消失（网页/桌面端均复现）。
+  // 写入 store 保留在 useEffect 中，但不订阅值，因此写回不会引起本组件重渲染。
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(
+    useStore.getState().pipelineNodes || [],
+  )
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(
+    useStore.getState().pipelineEdges || [],
+  )
   const setPipelineNodes = useStore((s) => s.setPipelineNodes)
   const setPipelineEdges = useStore((s) => s.setPipelineEdges)
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(pipelineNodes || [])
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(pipelineEdges || [])
   // 节点/边变化时同步回 store，保证切换模式后画布状态保留
   useEffect(() => {
     setPipelineNodes(nodes)
