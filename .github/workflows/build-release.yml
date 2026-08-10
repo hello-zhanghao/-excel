@@ -90,7 +90,7 @@ jobs:
         run: |
           $v = (Get-Content package.json | ConvertFrom-Json).version
           Write-Output "version=$v"
-          Write-Output "tag=v$v"
+          Write-Output "tag=v$v" >> $env:GITHUB_OUTPUT
 
       - name: Upload installer to Release
         if: steps.pkg.outcome == 'success'
