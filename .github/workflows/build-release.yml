@@ -100,9 +100,9 @@ jobs:
       #   - ALIYUN_PASS   服务器 SSH 密码
       #   - ALIYUN_REMOTE_DIR（可选，默认 /usr/share/nginx/html/downloads）
       # 说明：密码按字面存入 Secret 即可，脚本用 SFTP 上传；若服务器开了仅密钥登录，建议改用 SSH 私钥方案。
+      # 注意：本步骤不设置 continue-on-error —— Secrets 缺失或上传失败都会让 job 直接标红，避免“假成功”。
       - name: Upload installer to Aliyun server
         if: steps.pkg.outcome == 'success'
-        continue-on-error: true
         shell: pwsh
         env:
           ALIYUN_HOST: ${{ secrets.ALIYUN_HOST }}

@@ -21,8 +21,8 @@ remote_dir = os.environ.get("REMOTE_DIR", "/usr/share/nginx/html/downloads")
 release_dir = os.environ.get("RELEASE_DIR", "release")
 
 if not (host and user and pwd):
-    print("::warning::缺少 ALIYUN_HOST/ALIYUN_USER/ALIYUN_PASS，跳过阿里云上传")
-    sys.exit(0)
+    print("::error::缺少 ALIYUN_HOST/ALIYUN_USER/ALIYUN_PASS，请检查仓库 Secrets 是否已正确配置")
+    sys.exit(1)
 
 patterns = ["*.exe", "*.yml", "*.blockmap"]
 files = []
@@ -31,8 +31,8 @@ for pat in patterns:
 # 去重并过滤掉目录
 files = [f for f in files if os.path.isfile(f)]
 if not files:
-    print("::warning::release 目录下没有可上传的产物")
-    sys.exit(0)
+    print("::error::release 目录下没有可上传的产物，请检查构建产物路径")
+    sys.exit(1)
 
 client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
