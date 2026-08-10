@@ -83,10 +83,23 @@ jobs:
             release/*.blockmap
           if-no-files-found: warn
 
+      # 读取 package.json 版本号，供手动触发（workflow_dispatch）时生成 Release tag 使用
+      - name: Get version
+        id: ver
+        shell: pwsh
+        run: |
+          $v = (Get-Content package.json | ConvertFrom-Json).version
+          Write-Output "version=$v"
+          Write-Output "tag=v$v"
+
       - name: Upload installer to Release
         if: steps.pkg.outcome == 'success'
+        # 手动触发时跑在分支上无 tag，action-gh-release 会失败；
+        # 用 continue-on-error 保证不阻断后续的阿里云上传步骤。
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.ver.outputs.tag }}
           files: |
             release/*.exe
             release/*.yml
