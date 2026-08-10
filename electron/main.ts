@@ -11,6 +11,14 @@ import {
 let mainWindow: BrowserWindow | null = null
 const dataService = new DataService()
 
+// 开发模式下 Vite dev server 的热更新与源码映射依赖 unsafe-eval，
+// 必然触发 Electron 的「Insecure Content-Security-Policy」安全警告。
+// 该警告仅存在于开发环境（打包后不会出现），生产包已开启 contextIsolation
+// 并关闭 nodeIntegration，故这里仅在开发模式关闭警告，避免控制台噪音。
+if (!app.isPackaged) {
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
