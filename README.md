@@ -36,13 +36,12 @@ npm run pack:linux # Linux
 
 ## 下载分发
 
-桌面版安装包通过以下渠道分发，国内用户建议优先使用阿里云服务器或 Gitee 镜像：
+桌面版安装包通过以下渠道分发，国内用户建议优先使用阿里云服务器：
 
 - **阿里云服务器（推荐，国内直连最快）**：`http://8.160.160.145/downloads/`
-- **Gitee Releases（国内源）**：`https://gitee.com/hello-zhanghao/-excel/releases`
 - **GitHub Releases（全球源，国内较慢）**：`https://github.com/hello-zhanghao/-excel/releases`
 
-发布流程：打 tag（如 `v0.2.9`）push 后，GitHub Actions 会自动构建，并同时上传到 GitHub、Gitee 以及阿里云服务器的 `/downloads/` 目录（无需手动操作）。
+发布流程：打 tag（如 `v0.2.9`）push 后，GitHub Actions 会自动构建，并同时上传到 GitHub 以及阿里云服务器的 `/downloads/` 目录（无需手动操作）。
 
 ## 目录结构
 

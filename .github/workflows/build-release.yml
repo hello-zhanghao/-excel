@@ -93,60 +93,7 @@ jobs:
             release/*.blockmap
           generate_release_notes: true
 
-      # 国内用户访问 GitHub Releases 较慢，因此把同一批产物同步上传到 Gitee Release 做镜像分发。
-      # 需要预先在仓库 Settings → Secrets 里配置：
-      #   - GITEE_REPO ：Gitee 仓库，格式 "用户名/仓库名"（不填则回退用 GitHub 仓库名）
-      #   - GITEE_TOKEN ：Gitee 私人令牌（https://gitee.com/profile/personal_access_tokens，需勾选 releases 权限）
-      # Gitee 仓库需与 GitHub 保持同步（尤其是 tag），否则 release 创建会失败。
-      - name: Upload installer to Gitee Release
-        if: steps.pkg.outcome == 'success'
-        continue-on-error: true
-        shell: pwsh
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-          GITEE_REPO: ${{ secrets.GITEE_REPO }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          if (-not $env:GITEE_TOKEN) {
-            Write-Host "::warning::GITEE_TOKEN 未配置，跳过 Gitee 镜像上传"
-            exit 0
-          }
-
-          $fullRepo = if ($env:GITEE_REPO) { $env:GITEE_REPO } else { $env:GH_REPO }
-          $base = "https://gitee.com/api/v5/repos/$fullRepo/releases"
-          $tagEndpoint = "$base/tags/$env:TAG"
-
-          # 1. 按 tag 查找 release，不存在则创建
-          $releaseId = $null
-          try {
-            $rel = Invoke-RestMethod -Method Get -Uri "$tagEndpoint?access_token=$env:GITEE_TOKEN"
-            $releaseId = $rel.id
-            Write-Host "Gitee release exists (id=$releaseId)"
-          } catch {
-            $body = @{
-              access_token = $env:GITEE_TOKEN
-              tag_name     = $env:TAG
-              name         = "Release $env:TAG"
-              body         = "自动发布 $env:TAG"
-            } | ConvertTo-Json
-            $created = Invoke-RestMethod -Method Post -Uri $base -ContentType 'application/json' -Body $body
-            $releaseId = $created.id
-            Write-Host "Gitee release created (id=$releaseId)"
-          }
-
-          # 2. 上传所有安装产物
-          $files = Get-ChildItem -Path 'release' -File | Where-Object { $_.Extension -in '.exe', '.yml', '.blockmap' }
-          foreach ($f in $files) {
-            Write-Host "Uploading $($f.Name) to Gitee..."
-            Invoke-RestMethod -Method Post -Uri "$base/$releaseId/attach_files" -Form @{
-              access_token = $env:GITEE_TOKEN
-              file         = Get-Item $f.FullName
-            }
-          }
-          Write-Host "::notice::Gitee 镜像上传完成，共 $($files.Count) 个文件"
-
-      # 再把产物上传到自有阿里云服务器（国内直连，速度最快）。
+      # 把产物上传到自有阿里云服务器（国内直连，速度最快）。
       # 需要在仓库 Settings → Secrets 里配置：
       #   - ALIYUN_HOST   服务器 IP/域名
       #   - ALIYUN_USER   服务器 SSH 用户名
