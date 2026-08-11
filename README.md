@@ -41,7 +41,7 @@ npm run pack:linux # Linux
 - **阿里云服务器（推荐，国内直连最快）**：`http://8.160.160.145/downloads/`
 - **GitHub Releases（全球源，国内较慢）**：`https://github.com/hello-zhanghao/-excel/releases`
 
-发布流程：打 tag（如 `v0.2.9`）push 后，GitHub Actions 会自动构建，并同时上传到 GitHub 以及阿里云服务器的 `/downloads/` 目录（无需手动操作）。
+发布流程：打 tag（如 `v0.3.0`）push 后，GitHub Actions 会自动构建，并同时上传到 GitHub 以及阿里云服务器的 `/downloads/` 目录（无需手动操作）。
 
 ## 目录结构
 
