@@ -1624,6 +1624,109 @@ body {
   background: var(--brand-dark);
 }
 
+/* 下载下拉菜单（Web 版「下载桌面版」双入口：阿里云 + GitHub） */
+.download-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.app-header .download-menu-trigger {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-header .download-menu-trigger:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.mode-card .download-menu-trigger {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--brand);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-card .download-menu-trigger:hover {
+  background: var(--brand-dark);
+}
+
+.download-menu-caret {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.download-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.download-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.download-menu-item:hover {
+  background: var(--bg);
+}
+
+.download-menu-item-label {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.download-menu-tag {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--brand);
+  color: white;
+}
+
+.download-menu-item-desc {
+  font-size: 11px;
+  color: var(--text-light);
+}
+
 .mode-card .active-tag {
   position: absolute;
   top: 6px;

@@ -3,6 +3,7 @@ import { useStore } from '@/store/useStore'
 import { FieldPanel } from '@/components/FieldPanel'
 import { Dashboard } from '@/components/Dashboard'
 import { PipelineCanvas } from '@/components/PipelineCanvas'
+import DownloadMenu from '@/components/DownloadMenu'
 import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
 
 /** 运行时信息（桌面端通过 IPC 获取） */
@@ -108,15 +109,7 @@ export default function App() {
 
         <div className="spacer" />
         {env === 'web' && (
-          <a
-            className="btn-open"
-            href="https://github.com/hello-zhanghao/-excel/releases/latest"
-            target="_blank"
-            rel="noreferrer"
-            title="下载桌面版，免安装网页环境，支持百万级大数据"
-          >
-            ⬇ 下载桌面版
-          </a>
+          <DownloadMenu label="⬇ 下载桌面版" />
         )}
         {loaded && appMode === 'visualize' && (
           <button className="btn-open" onClick={handleOpenFile}>
@@ -175,14 +168,7 @@ export default function App() {
                 原生文件系统访问
               </div>
               {env === 'web' && (
-                <a
-                  className="download-link"
-                  href="https://github.com/hello-zhanghao/-excel/releases/latest"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  ⬇ 下载桌面版
-                </a>
+                <DownloadMenu className="download-link" label="⬇ 下载桌面版" />
               )}
             </div>
           </div>
