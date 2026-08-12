@@ -58,6 +58,13 @@ npm run pack:linux # Linux
 
 ## 版本记录
 
+### v0.3.1 (2026-08-13)
+
+- fix: 桌面端加载超大文件（>20MB）时跳过全量 JS 解析，避免渲染进程主线程阻塞导致 UI 卡死
+  - 新增 Electron IPC `file:stat` 与 preload `statFile`，先查文件大小再决定是否做 base64 + SheetJS 全量解析
+  - 可视化模式不受影响（走 DuckDB 查询）；数据流模式对超大文件可改用 DuckDB 查询
+- perf: 修复 Web 版下载桌面版为下拉菜单，提供阿里云国内直连与 GitHub 双入口
+
 ### v0.3.0 (2026-08-10)
 
 - fix: 修复快速移动组件导致整个画布节点全部消失的问题（网页/桌面端）
