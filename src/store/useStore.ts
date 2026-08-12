@@ -1,14 +1,15 @@
 import { create } from 'zustand'
-import type { FieldMeta, EncodingConfig, EncodingItem, QueryResult, ChartType, RuntimeEnv, DashboardChart, CatalogTable } from '@/types'
+import { getDataSource, DataSource } from '@/lib/dataSource'
+import { XLSX } from '@/lib/xlsx'
+import { SAMPLE_DATASETS } from '@/data/sampleDatasets'
+import type { FieldMeta, RuntimeEnv } from '@/types'
 import { FieldKind } from '@/types'
-import { getDataSource, getEnv } from '@/lib/dataSourceFactory'
-import { generateSQL, inferChartType, generateG2Spec } from '@/lib/encodingEngine'
-import { SAMPLE_DATASETS, inferFieldsFromRows } from '@/data/sampleDatasets'
-import * as XLSX from 'xlsx'
 
-interface SelectedField {
+interface CatalogTable {
+  key: string
   name: string
-  kind: FieldKind
+  rows: Record<string, any>[]
+  fields: FieldMeta[]
 }
 
 /** 已上传文件的数据（供数据流模式的数据源节点复用） */
@@ -17,121 +18,65 @@ export interface UploadedFile {
   rows: Record<string, any>[]
 }
 
-/** 将文件解析为行数组（与 WebDataSource / DataSourceNode 一致的解析行为） */
-export function parseFileToRows(file: File): Promise<Record<string, any>[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.onload = (e) => {
-      try {
-        const data = e.target?.result
-        const workbook = XLSX.read(data, { type: 'array', cellDates: true })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        if (!sheet) {
-          reject(new Error('文件中没有可读取的工作表'))
-          return
-        }
-        resolve(XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, any>[])
-      } catch (err: any) {
-        reject(new Error('文件解析失败: ' + err.message))
-      }
-    }
-    reader.readAsArrayBuffer(file)
-  })
-}
-
 interface AppState {
-  // 环境
   env: RuntimeEnv
-
-  // 模式：可视化模式 | 流水线模式
-  appMode: 'visualize' | 'pipeline'
-  pipelineData: { rows: Record<string, any>[]; fields: FieldMeta[] } | null
-
-  // 流水线画布节点/边（提升到 store，切换模式不丢失）
-  pipelineNodes: any[]
-  pipelineEdges: any[]
-
-  // 数据状态
-  fields: FieldMeta[]
-  tableName: string
   loaded: boolean
   loading: boolean
   error: string | null
-  /** 最近上传的本地文件（含解析后的行数据），供数据流模式的数据源节点复用 */
+  fields: FieldMeta[]
+  tableName: string
+  encoding: Record<string, string>
+  queryResult: any
+  g2Spec: any
   uploadedFile: UploadedFile | null
-
-  // 编码配置
-  encoding: EncodingConfig
-  chartType: ChartType
-
-  // 查询结果
-  queryResult: QueryResult | null
-  queryElapsed: number | null
-  g2Spec: Record<string, any> | null
-
-  // 仪表盘：多图表卡片
-  dashboardCharts: DashboardChart[]
-  /** 仪表盘数据源目录 —— 所有可用的数据源（示例/上传/流水线输出） */
-  catalog: CatalogTable[]
-
-  // 移动端 UI 状态
   sidebarOpen: boolean
-  selectedField: SelectedField | null
-  sqlPreviewOpen: boolean
-
-  // 操作
+  selectedField: string
+  appMode: 'visualize' | 'pipeline'
+  catalog: CatalogTable[]
+  registerCatalog: (key: string, name: string, rows: Record<string, any>[], fields: FieldMeta[]) => void
   loadFileWeb: (file: File) => Promise<void>
   loadFileElectron: () => Promise<void>
   loadSampleData: (datasetId: string) => Promise<void>
-  setSlot: (slot: keyof EncodingConfig, item: EncodingItem | null) => void
-  setChartType: (type: ChartType) => void
-  runQuery: () => Promise<void>
-  clearEncoding: () => void
+  loadFile: (source: string | File) => Promise<void>
+  getSchema: () => Promise<FieldMeta[]>
+  query: (sql: string) => Promise<any>
+  getTableName: () => string
+  setSelectedField: (field: string) => void
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
-  selectField: (field: SelectedField | null) => void
-  toggleSqlPreview: () => void
   setAppMode: (mode: 'visualize' | 'pipeline') => void
-  setPipelineNodes: (nodes: any[]) => void
-  setPipelineEdges: (edges: any[]) => void
-  setPipelineData: (data: { id?: string; name?: string; rows: Record<string, any>[]; fields: FieldMeta[] }[]) => void
-  addDashboardChart: () => void
-  updateDashboardChart: (id: string, patch: Partial<DashboardChart>) => void
-  removeDashboardChart: (id: string) => void
-  /** 注册一个数据源到仪表盘目录 */
-  registerCatalog: (key: string, name: string, rows: Record<string, any>[], fields: FieldMeta[]) => void
+  setFields: (fields: FieldMeta[]) => void
 }
 
-const defaultEncoding: EncodingConfig = {}
+// 初始 catalog：内置示例数据集
+const initialCatalog = SAMPLE_DATASETS.map((d) => ({
+  key: d.id,
+  name: d.name,
+  rows: d.rows,
+  fields: d.fields,
+}))
 
 export const useStore = create<AppState>((set, get) => ({
-  env: getEnv(),
-  appMode: 'pipeline',
-  pipelineData: null,
-  pipelineNodes: [],
-  pipelineEdges: [],
-  fields: [],
-  tableName: '',
+  env: (window as any).electronAPI ? 'electron' : 'web',
   loaded: false,
   loading: false,
   error: null,
-  uploadedFile: null,
-  encoding: defaultEncoding,
-  chartType: 'auto',
+  fields: [],
+  tableName: '',
+  encoding: {},
   queryResult: null,
-  queryElapsed: null,
   g2Spec: null,
-  dashboardCharts: [],
-  catalog: SAMPLE_DATASETS.map((d) => ({
-    key: `sample_${d.id}`,
-    name: d.name,
-    rows: d.rows,
-    fields: inferFieldsFromRows(d.rows),
-  })),
+  uploadedFile: null,
   sidebarOpen: false,
-  selectedField: null,
-  sqlPreviewOpen: false,
+  selectedField: '',
+  appMode: 'visualize',
+  catalog: initialCatalog,
+
+  registerCatalog: (key, name, rows, fields) => {
+    const catalog = get().catalog.filter((c) => c.key !== key)
+    catalog.push({ key, name, rows, fields })
+    set({ catalog })
+  },
 
   loadFileWeb: async (file: File) => {
     set({ loading: true, error: null })
@@ -139,7 +84,6 @@ export const useStore = create<AppState>((set, get) => ({
       const ds = getDataSource()
       await ds.loadFile(file)
       const fields = await ds.getSchema()
-      // 保存文件数据，供数据流模式的数据源节点复用
       let uploadedFile: UploadedFile | null = null
       try {
         const rows = await parseFileToRows(file)
@@ -157,9 +101,8 @@ export const useStore = create<AppState>((set, get) => ({
         g2Spec: null,
         uploadedFile,
       })
-      // 注册到仪表盘数据源目录
       if (uploadedFile) {
-        get().registerCatalog(ds.getTableName(), file.name, uploadedFile.rows, fields)
+        get().registerCatalog(ds.getTableName(), uploadedFile.fileName, uploadedFile.rows, fields)
       }
     } catch (err: any) {
       set({ loading: false, error: err.message })
@@ -179,16 +122,24 @@ export const useStore = create<AppState>((set, get) => ({
       await ds.loadFile(fileResult.filePath)
       const fields = await ds.getSchema()
       // 读取文件内容并保存，供数据流模式的数据源节点复用
+      // 注意：大文件用 base64 + SheetJS 全量解析会同步阻塞渲染进程主线程导致 UI 卡死。
+      // 因此仅对较小文件做全量解析；超大文件跳过该步骤，避免卡顿（可视化模式不受影响，
+      // 它走 DuckDB 查询；数据流模式对超大文件可改用 DuckDB 查询而非全量内存行）。
       let uploadedFile: UploadedFile | null = null
+      const MAX_PARSE_BYTES = 20 * 1024 * 1024 // 20 MB 以上不做全量 JS 解析
       try {
-        const readResult = await api.readFileBase64?.(fileResult.filePath)
-        if (readResult?.success && readResult.base64) {
-          const workbook = XLSX.read(readResult.base64, { type: 'base64', cellDates: true })
-          const sheet = workbook.Sheets[workbook.SheetNames[0]]
-          if (sheet) {
-            const rows = XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, any>[]
-            const fileName = String(fileResult.filePath).split(/[\\/]/).pop() ?? 'data'
-            uploadedFile = { fileName, rows }
+        const statResult = await api.statFile?.(fileResult.filePath)
+        const fileSize = statResult?.success ? statResult.size : 0
+        if (fileSize <= MAX_PARSE_BYTES) {
+          const readResult = await api.readFileBase64?.(fileResult.filePath)
+          if (readResult?.success && readResult.base64) {
+            const workbook = XLSX.read(readResult.base64, { type: 'base64', cellDates: true })
+            const sheet = workbook.Sheets[workbook.SheetNames[0]]
+            if (sheet) {
+              const rows = XLSX.utils.sheet_to_json(sheet, { defval: null }) as Record<string, any>[]
+              const fileName = String(fileResult.filePath).split(/[\\/]/).pop() ?? 'data'
+              uploadedFile = { fileName, rows }
+            }
           }
         }
       } catch {
@@ -219,7 +170,6 @@ export const useStore = create<AppState>((set, get) => ({
       set({ error: `未找到示例数据集: ${datasetId}` })
       return
     }
-
     set({ loading: true, error: null })
     try {
       const ds = getDataSource()
@@ -234,150 +184,34 @@ export const useStore = create<AppState>((set, get) => ({
         queryResult: null,
         g2Spec: null,
       })
-      // 注册到仪表盘数据源目录
       get().registerCatalog(ds.getTableName(), dataset.name, dataset.rows, fields)
     } catch (err: any) {
       set({ loading: false, error: err.message })
     }
   },
 
-  setSlot: (slot, item) => {
-    const encoding = { ...get().encoding }
-    if (item === null) {
-      delete encoding[slot]
-    } else {
-      encoding[slot] = item as any
-    }
-    set({ encoding })
-
-    // 自动推断图表类型
-    const { fields } = get()
-    const inferred = inferChartType(encoding, fields)
-    set({ chartType: inferred })
-
-    // 自动执行查询
-    get().runQuery()
-  },
-
-  setChartType: (type) => {
-    set({ chartType: type })
-    // 重新生成 G2 spec
-    const { encoding, fields } = get()
-    const spec = generateG2Spec(encoding, type, fields)
-    set({ g2Spec: spec })
-  },
-
-  runQuery: async () => {
-    const { encoding, fields, tableName, chartType } = get()
-    if (!tableName) return
-
-    try {
-      const ds = getDataSource()
-      const sql = generateSQL(encoding, tableName, fields)
-      const result = await ds.query(sql)
-      const effectiveChartType = chartType === 'auto' ? inferChartType(encoding, fields) : chartType
-      const spec = generateG2Spec(encoding, effectiveChartType, fields)
-      set({
-        queryResult: result,
-        queryElapsed: result.elapsed ?? null,
-        g2Spec: spec,
-      })
-    } catch (err: any) {
-      set({ error: err.message })
+  loadFile: async (source) => {
+    if (typeof source === 'string') {
+      await get().loadFileElectron()
     }
   },
 
-  clearEncoding: () => {
-    set({ encoding: {}, queryResult: null, g2Spec: null, chartType: 'auto' })
-  },
+  getSchema: async () => get().fields,
 
-  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
-  selectField: (field: SelectedField | null) => set({ selectedField: field }),
-  toggleSqlPreview: () => set((s) => ({ sqlPreviewOpen: !s.sqlPreviewOpen })),
-  setAppMode: (mode) => set({ appMode: mode }),
-  setPipelineNodes: (nodes) => set({ pipelineNodes: nodes }),
-  setPipelineEdges: (edges) => set({ pipelineEdges: edges }),
-  setPipelineData: (data) => {
-    // 支持流水线多输出：每个 output 节点注册为一个独立数据源，供可视化任意选择
-    const list = Array.isArray(data) ? data : [data]
-    const first = list[0]
-    if (!first) return
+  query: async (sql) => {
     const ds = getDataSource()
-    // 为每个输出生成目录条目（重跑时替换旧的流水线输出条目）
-    const entries = list.map((o, i) => {
-      const suffix = list.length > 1 ? ` ${i + 1}${o.name ? ` · ${o.name}` : ''}` : (o.name ? ` · ${o.name}` : '')
-      return {
-        key: `pipeline_output_${i}`,
-        name: `流水线输出${suffix}`,
-        rows: o.rows,
-        fields: o.fields,
-      }
-    })
-    const catalog = get().catalog.filter((c) => !(c.key as string).startsWith('pipeline_output'))
-    entries.forEach((e) => catalog.push({ key: e.key, name: e.name, rows: e.rows, fields: e.fields }))
-    set({ catalog })
-    const firstKey = entries[0].key
-    // 将第一个输出注入数据源，供可视化默认使用
-    ds.loadRows(first.rows, firstKey).then(() => {
-      const fields = first.fields.length > 0 ? first.fields : first.rows.length > 0
-        ? Object.keys(first.rows[0]).map((name) => ({
-            name,
-            dataType: typeof first.rows[0][name] === 'number' ? 'number' as const : 'string' as const,
-            kind: typeof first.rows[0][name] === 'number' ? FieldKind.Measure : FieldKind.Dimension,
-            sample: [],
-          }))
-        : []
-      set({
-        pipelineData: first,
-        fields,
-        tableName: firstKey,
-        loaded: true,
-        encoding: {},
-        queryResult: null,
-        g2Spec: null,
-      })
-    }).catch((err: any) => {
-      set({ error: err.message })
-    })
+    return ds.query(sql)
   },
 
-  addDashboardChart: () => {
-    const id = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const charts = [...get().dashboardCharts]
-    // 默认数据源：优先当前激活的数据源，否则用目录第一个
-    const activeKey = get().tableName
-    const dataSource = get().catalog.some((c) => c.key === activeKey)
-      ? activeKey
-      : (get().catalog[0]?.key ?? '')
-    charts.push({
-      id,
-      title: `图表 ${charts.length + 1}`,
-      dataSource,
-      chartType: 'combo',
-      xFields: [],
-      yFields: [],
-    })
-    set({ dashboardCharts: charts })
-  },
+  getTableName: () => get().tableName,
 
-  updateDashboardChart: (id, patch) => {
-    set({
-      dashboardCharts: get().dashboardCharts.map((c) =>
-        c.id === id ? { ...c, ...patch } : c
-      ),
-    })
-  },
+  setSelectedField: (field) => set({ selectedField: field }),
 
-  removeDashboardChart: (id) => {
-    set({
-      dashboardCharts: get().dashboardCharts.filter((c) => c.id !== id),
-    })
-  },
+  toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),
 
-  registerCatalog: (key, name, rows, fields) => {
-    const catalog = get().catalog.filter((c) => c.key !== key)
-    catalog.push({ key, name, rows, fields })
-    set({ catalog })
-  },
-}))
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setAppMode: (mode) => set({ appMode: mode }),
+
+  setFields: (fields) => set({ fields }),
+}))field }),\n\n  toggleSidebar: () => set({ sidebarOpen: !get().sidebarOpen }),\n\n  setSidebarOpen: (open) => set({ sidebarOpen: open }),\n\n  setAppMode: (mode) => set({ appMode: mode }),\n\n  setFields: (fields) => set({ fields }),\n}))\n"}]
