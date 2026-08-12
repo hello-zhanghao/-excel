@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 读取本地文件内容为 base64（供前端解析行数据）
   readFileBase64: (filePath: string) => ipcRenderer.invoke('file:readBase64', filePath),
 
+  // 获取本地文件大小（供前端判断是否需要全量解析）
+  statFile: (filePath: string) => ipcRenderer.invoke('file:stat', filePath),
+
   // 直接加载行数组到 DuckDB（用于内置示例数据集）
   loadRows: (rows: Record<string, any>[], name: string) =>
     ipcRenderer.invoke('data:loadRows', rows, name),

@@ -84,6 +84,16 @@ ipcMain.handle('file:readBase64', async (_event, filePath: string) => {
   }
 })
 
+// IPC: 获取本地文件大小（供前端判断是否需要全量解析）
+ipcMain.handle('file:stat', async (_event, filePath: string) => {
+  try {
+    const st = await fs.promises.stat(filePath)
+    return { success: true, size: st.size }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
 // IPC: 直接加载行数组到 DuckDB（用于内置示例数据集）
 ipcMain.handle('data:loadRows', async (_event, rows: Record<string, any>[], name: string) => {
   try {
